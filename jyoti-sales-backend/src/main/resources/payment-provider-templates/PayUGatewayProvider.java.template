@@ -1,0 +1,13 @@
+package com.jyotisales.service.payment;
+
+// TEMPLATE — rename to PayUGatewayProvider.java and drop into
+// src/main/java/com/jyotisales/service/payment/ to activate.
+//
+// 1. Add PayU's hash-generation utility / SDK to pom.xml.
+// 2. Set env vars: PAYU_MERCHANT_KEY, PAYU_MERCHANT_SALT.
+// 3. Set app.payment.provider=payu (or PAYMENT_PROVIDER=payu).
+// 4. Implement initiate() to build the PayU hash + redirect form params,
+//    verify() to validate the response hash PayU posts back, and
+//    getStatus() to call PayU's Verify Payment API.
+//    Nothing else in the codebase needs to change — PaymentProviderResolver picks this
+//    class up automatically via providerName() == "payu".

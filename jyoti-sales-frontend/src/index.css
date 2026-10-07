@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Theme tokens — light-premium is the default; .dark inverts surfaces while
+   keeping the same accent hue family for continuity (per design brief).
+   Values are "R G B" triplets so Tailwind's rgb(var(--x) / <alpha-value>)
+   utilities can apply opacity modifiers (e.g. text-ink/60).
+   ========================================================================== */
+:root {
+  --color-surface: 250 248 245;        /* #FAF8F5 warm off-white base */
+  --color-surface-2: 240 233 222;      /* #F0E9DE warm secondary surface (footer, trust strip) */
+  --color-panel: 255 253 250;          /* #FFFDFA card / input surface */
+  --color-ink: 42 38 32;               /* #2A2620 near-black warm gray text */
+  --color-hairline: 42 38 32;          /* hairline borders, used at low opacity */
+
+  --color-coral: 232 115 74;           /* #E8734A primary accent */
+  --color-copperwarm: 217 140 74;      /* #D98C4A secondary warm tone */
+  --color-plum: 59 46 90;              /* #3B2E5A deep plum — readable as foreground text on light surfaces */
+  --color-plum-fixed: 59 46 90;        /* deep plum fixed for background fills / gradients */
+  --color-onaccent: 42 38 32;          /* fixed near-black label color for text sitting on accent fills */
+  --color-onaccent-light: 244 241 234; /* fixed warm off-white label color for text sitting on the fixed deep-plum fill */
+}
+
+:root.dark {
+  --color-surface: 11 13 16;           /* #0B0D10 obsidian base */
+  --color-surface-2: 20 23 28;         /* #14171C */
+  --color-panel: 26 30 36;             /* #1A1E24 */
+  --color-ink: 244 241 234;            /* #F4F1EA off-white text */
+  --color-hairline: 244 241 234;
+
+  --color-coral: 232 115 74;           /* same hue, continuity across themes */
+  --color-copperwarm: 217 140 74;
+  --color-plum: 168 153 214;           /* lightened plum tint — keeps the hue family readable on dark surfaces */
+  --color-plum-fixed: 59 46 90;
+  --color-onaccent: 42 38 32;
+  --color-onaccent-light: 244 241 234;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(var(--color-surface));
+  transition: background-color 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgb(var(--color-surface-2));
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-ink) / 0.2);
+  border-radius: 8px;
+}
+
+.glass {
+  background: rgb(var(--color-panel) / 0.72);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgb(var(--color-hairline) / 0.08);
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, rgb(var(--color-coral)), rgb(var(--color-plum-fixed)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Shimmering skeleton loader, tuned to each theme's surface tones */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(var(--color-surface-2));
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--color-panel) / 0.6),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Visible keyboard focus ring, accessible in both themes */
+:focus-visible {
+  outline: 2px solid rgb(var(--color-coral));
+  outline-offset: 2px;
+}

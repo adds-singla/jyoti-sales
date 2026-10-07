@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: jyoti-sales-backend
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:jyoti_sales}
+    username: ${DB_USER:jyoti}
+    password: ${DB_PASSWORD:jyoti_pass}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:change-this-super-secret-key-min-32-chars-long-please}
+    access-token-expiry-ms: ${JWT_ACCESS_EXPIRY:900000}      # 15 min
+    refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY:604800000} # 7 days
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
+  business:
+    name: ${BIZ_NAME:Jyoti Sales}
+    address: ${BIZ_ADDRESS:[[Full shop address, PIN]]}
+    phone: ${BIZ_PHONE:[[10-digit number]]}
+    email: ${BIZ_EMAIL:[[email]]}
+    gstin: ${BIZ_GSTIN:[[GSTIN]]}
+  payment:
+    provider: ${PAYMENT_PROVIDER:dummy}  # dummy | razorpay | payu
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.jyotisales: INFO
+    org.springframework.security: WARN

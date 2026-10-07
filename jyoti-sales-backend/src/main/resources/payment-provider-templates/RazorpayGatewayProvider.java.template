@@ -1,0 +1,47 @@
+package com.jyotisales.service.payment;
+
+// TEMPLATE — rename to RazorpayGatewayProvider.java and drop into
+// src/main/java/com/jyotisales/service/payment/ to activate.
+//
+// 1. Add the Razorpay Java SDK dependency to pom.xml (com.razorpay:razorpay-java).
+// 2. Set env vars: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET.
+// 3. Set app.payment.provider=razorpay (or PAYMENT_PROVIDER=razorpay).
+// 4. Implement the three interface methods below using the Razorpay Orders/Payments API.
+//    Nothing else in the codebase needs to change — PaymentProviderResolver picks this
+//    class up automatically via providerName() == "razorpay".
+//
+// import com.razorpay.RazorpayClient;
+// import org.springframework.beans.factory.annotation.Value;
+// import org.springframework.stereotype.Component;
+//
+// @Component
+// public class RazorpayGatewayProvider implements PaymentGatewayService {
+//
+//     @Value("${razorpay.key-id}")
+//     private String keyId;
+//     @Value("${razorpay.key-secret}")
+//     private String keySecret;
+//
+//     @Override
+//     public String providerName() { return "razorpay"; }
+//
+//     @Override
+//     public GatewayInitiateResult initiate(InitiateCommand command) {
+//         // RazorpayClient client = new RazorpayClient(keyId, keySecret);
+//         // Order order = client.orders.create(JSONObject with amount/currency/receipt);
+//         // return new GatewayInitiateResult(order.get("id"), GatewayStatus.INITIATED, "Redirect to Razorpay Checkout", false);
+//         throw new UnsupportedOperationException("Wire up Razorpay Orders API here");
+//     }
+//
+//     @Override
+//     public GatewayVerifyResult verify(String providerReference) {
+//         // Verify signature via Utils.verifyPaymentSignature(...), then fetch payment status
+//         throw new UnsupportedOperationException("Wire up Razorpay signature verification here");
+//     }
+//
+//     @Override
+//     public GatewayStatus getStatus(String providerReference) {
+//         // client.payments.fetch(providerReference).get("status")
+//         throw new UnsupportedOperationException("Wire up Razorpay payment fetch here");
+//     }
+// }
