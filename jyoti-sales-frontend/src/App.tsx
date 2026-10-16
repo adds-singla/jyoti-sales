@@ -16,6 +16,11 @@ import Register from './pages/Register'
 import Profile from './pages/Profile'
 import Wishlist from './pages/Wishlist'
 import Offers from './pages/Offers'
+import ProtectedRoute from './components/ProtectedRoute'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsAndConditions from './pages/TermsAndConditions'
+import ReturnPolicy from './pages/ReturnPolicy'
+import ShippingPolicy from './pages/ShippingPolicy'
 
 import AdminLayout from './pages/admin/AdminLayout'
 import Dashboard from './pages/admin/Dashboard'
@@ -47,12 +52,18 @@ export default function App() {
               <Route path="/category/:slug" element={<ProductListing />} />
               <Route path="/product/:slug" element={<ProductDetail />} />
               <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
               <Route path="/offers" element={<Offers />} />
+
+              {/* Legal pages */}
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
+              <Route path="/return-policy" element={<ReturnPolicy />} />
+              <Route path="/shipping-policy" element={<ShippingPolicy />} />
 
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Dashboard />} />

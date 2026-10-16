@@ -2,11 +2,14 @@ package com.jyotisales.controller;
 
 import com.jyotisales.dto.OrderResponse;
 import com.jyotisales.entity.Order;
+import com.jyotisales.service.InvoiceService;
 import com.jyotisales.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +23,7 @@ import java.util.Map;
 public class AdminOrderController {
 
     private final OrderService orderService;
+    private final InvoiceService invoiceService;
 
     @GetMapping
     public ResponseEntity<Page<OrderResponse>> list(@RequestParam(required = false) Order.Status status,
@@ -36,5 +40,17 @@ public class AdminOrderController {
     @GetMapping("/pending-count")
     public ResponseEntity<Map<String, Long>> pendingCount() {
         return ResponseEntity.ok(Map.of("count", orderService.countPending()));
+    }
+
+    /** Download PDF invoice for any order (admin only). */
+    @GetMapping("/{id}/invoice")
+    public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id) {
+        Order order = orderService.getEntity(id);
+        byte[] pdf = invoiceService.generate(order);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"Invoice-" + order.getOrderNumber() + ".pdf\"")
+                .body(pdf);
     }
 }

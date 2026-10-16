@@ -56,8 +56,17 @@ public interface PaymentGatewayService {
             String providerReference,
             GatewayStatus status,
             String message,
-            boolean testMode
-    ) {}
+            boolean testMode,
+            // Razorpay-specific — null for other providers
+            String razorpayOrderId,
+            String razorpayKeyId
+    ) {
+        /** Convenience ctor for non-Razorpay providers */
+        public GatewayInitiateResult(String providerReference, GatewayStatus status,
+                                      String message, boolean testMode) {
+            this(providerReference, status, message, testMode, null, null);
+        }
+    }
 
     record GatewayVerifyResult(
             String providerReference,

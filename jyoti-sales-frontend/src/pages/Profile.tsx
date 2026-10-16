@@ -9,8 +9,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import clsx from 'clsx'
 import {
   Package, MapPin, User as UserIcon, ChevronDown, ChevronUp,
-  Clock, CheckCircle2, Truck, Box, Star, XCircle, Plus, Trash2, Edit3, Save, X
+  Clock, CheckCircle2, Truck, Box, Star, XCircle, Plus, Trash2, Edit3, Save, X, Download
 } from 'lucide-react'
+import InvoiceDownloadButton from '../components/InvoiceDownloadButton'
 
 // ── Status config ──
 const TRACKING_STEPS = ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'] as const
@@ -274,6 +275,9 @@ export default function Profile() {
                             <p className="font-display font-bold mt-0.5">{formatINR(o.total)}</p>
                           </div>
                         </div>
+
+                        {/* ── Download Invoice ── */}
+                        <InvoiceDownloadButton orderId={o.id} orderNumber={o.orderNumber} apiPath="/orders" />
                       </div>
                     </motion.div>
                   )}

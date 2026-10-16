@@ -38,6 +38,7 @@ export default function Navbar({ cartCount }: { cartCount: number }) {
 
           <div className="hidden md:flex items-center gap-5 text-sm">
             <Link to="/offers" className="hover:text-coral transition-colors">Offers</Link>
+            <Link to="/products" className="hover:text-coral transition-colors font-medium">Shop</Link>
             {role === 'ROLE_ADMIN' && (
               <Link to="/admin" className="hover:text-plum transition-colors">Admin</Link>
             )}

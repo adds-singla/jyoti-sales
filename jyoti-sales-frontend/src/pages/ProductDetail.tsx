@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import { Product, Review } from '../types'
 import { formatINR, estimateEmi } from '../lib/format'
@@ -8,7 +8,7 @@ import { useCart } from '../lib/useCart'
 import { useAuthStore } from '../store/authStore'
 import Rating from '../components/Rating'
 import ProductCard from '../components/ProductCard'
-import { ShieldCheck, Truck, Undo2, Star, Heart } from 'lucide-react'
+import { ShieldCheck, Truck, Undo2, Star, Heart, ChevronLeft, ChevronRight, Expand, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { triggerFlyToCart } from '../lib/flyToCart'
 
@@ -24,11 +24,37 @@ export default function ProductDetail() {
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', body: '' })
   const [reviewMsg, setReviewMsg] = useState('')
   const galleryImgRef = useRef<HTMLImageElement>(null)
+  const [lightbox, setLightbox] = useState(false)
+  const thumbnailsRef = useRef<HTMLDivElement>(null)
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', slug],
     queryFn: async () => (await api.get<Product>(`/products/slug/${slug}`)).data,
   })
+
+  // Keyboard navigation for gallery — defined after product so it's in scope
+  const navigate = useCallback((dir: 1 | -1) => {
+    if (!product) return
+    setActiveImage((prev) => {
+      const next = (prev + dir + product.imageUrls.length) % product.imageUrls.length
+      setTimeout(() => {
+        const el = thumbnailsRef.current?.children[next] as HTMLElement
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      }, 0)
+      return next
+    })
+  }, [product])
+
+  useEffect(() => {
+    if (!lightbox) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') navigate(1)
+      if (e.key === 'ArrowLeft')  navigate(-1)
+      if (e.key === 'Escape')     setLightbox(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [lightbox, navigate])
 
   const { data: related } = useQuery({
     queryKey: ['related', product?.id],
@@ -69,7 +95,7 @@ export default function ProductDetail() {
     if (galleryImgRef.current) {
       triggerFlyToCart(galleryImgRef.current.src, galleryImgRef.current)
     }
-    await addToCart(product, qty, selectedVariant)
+    await addToCart(product!, qty, selectedVariant)
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
   }
@@ -77,7 +103,7 @@ export default function ProductDetail() {
   async function submitReview(e: React.FormEvent) {
     e.preventDefault()
     try {
-      await api.post('/reviews', { productId: product.id, ...reviewForm })
+      await api.post('/reviews', { productId: product!.id, ...reviewForm })
       setReviewMsg('Thanks for your review!')
       setReviewForm({ rating: 5, title: '', body: '' })
       refetchReviews()
@@ -89,20 +115,155 @@ export default function ProductDetail() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="grid md:grid-cols-2 gap-10">
-        {/* Gallery */}
+        {/* ── Gallery ── */}
         <div>
-          <div className="aspect-square rounded-card overflow-hidden glass border border-hairline/10">
-            <img ref={galleryImgRef} src={product.imageUrls[activeImage] || product.imageUrls[0]} alt={product.name} className="w-full h-full object-cover" />
+          {/* Main image with prev/next arrows */}
+          <div className="relative aspect-square rounded-card overflow-hidden glass border border-hairline/10 group">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={activeImage}
+                ref={galleryImgRef}
+                src={product.imageUrls[activeImage] || product.imageUrls[0]}
+                alt={`${product.name} — image ${activeImage + 1}`}
+                initial={{ opacity: 0, scale: 1.03 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                transition={{ duration: 0.25 }}
+                className="w-full h-full object-cover cursor-zoom-in"
+                onClick={() => setLightbox(true)}
+              />
+            </AnimatePresence>
+
+            {/* Image counter badge */}
+            {product.imageUrls.length > 1 && (
+              <span className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                {activeImage + 1} / {product.imageUrls.length}
+              </span>
+            )}
+
+            {/* Expand / fullscreen button */}
+            <button
+              onClick={() => setLightbox(true)}
+              className="absolute top-3 left-3 bg-black/50 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+              title="View fullscreen"
+            >
+              <Expand className="h-4 w-4" />
+            </button>
+
+            {/* Prev arrow */}
+            {product.imageUrls.length > 1 && (
+              <>
+                <button
+                  onClick={() => navigate(-1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => navigate(1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
           </div>
-          <div className="flex gap-2 mt-3">
-            {product.imageUrls.map((img, i) => (
-              <button key={i} onClick={() => setActiveImage(i)}
-                className={`h-16 w-16 rounded-lg overflow-hidden border-2 ${i === activeImage ? 'border-coral' : 'border-hairline/15'}`}>
-                <img src={img} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
+
+          {/* Thumbnail strip */}
+          {product.imageUrls.length > 1 && (
+            <div
+              ref={thumbnailsRef}
+              className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide"
+            >
+              {product.imageUrls.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveImage(i)}
+                  className={`shrink-0 h-16 w-16 rounded-lg overflow-hidden border-2 transition-all ${
+                    i === activeImage
+                      ? 'border-coral ring-2 ring-coral/30 scale-105'
+                      : 'border-hairline/15 hover:border-hairline/40'
+                  }`}
+                >
+                  <img src={img} alt={`Thumbnail ${i + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Dot indicators (mobile) */}
+          {product.imageUrls.length > 1 && (
+            <div className="flex justify-center gap-1.5 mt-3 md:hidden">
+              {product.imageUrls.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveImage(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === activeImage ? 'w-5 bg-coral' : 'w-1.5 bg-ink/20'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* ── Lightbox modal ── */}
+        <AnimatePresence>
+          {lightbox && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+              onClick={() => setLightbox(false)}
+            >
+              <motion.img
+                key={activeImage}
+                src={product.imageUrls[activeImage]}
+                alt={product.name}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-full max-h-full object-contain rounded-xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+
+              {/* Close */}
+              <button
+                onClick={() => setLightbox(false)}
+                className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm"
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              {/* Lightbox arrows */}
+              {product.imageUrls.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(-1) }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-sm"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(1) }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-sm"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                </>
+              )}
+
+              {/* Lightbox counter */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3">
+                <span className="text-white/60 text-sm">{activeImage + 1} of {product.imageUrls.length}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Info */}
         <div>

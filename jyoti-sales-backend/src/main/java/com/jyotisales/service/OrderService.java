@@ -6,6 +6,7 @@ import com.jyotisales.entity.*;
 import com.jyotisales.exception.ApiException;
 import com.jyotisales.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -25,6 +27,7 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final CouponRepository couponRepository;
     private final ProductRepository productRepository;
+    private final EmailService emailService;
 
     /**
      * Creates an order from the user's current cart in PENDING status and immediately
@@ -139,7 +142,8 @@ public class OrderService {
         // Stock is already decremented at checkout time, so just update status
         order.setStatus(Order.Status.CONFIRMED);
         orderRepository.save(order);
-        System.out.println("[ORDER CONFIRMED] " + order.getOrderNumber() + " -> confirmation sent (mock).");
+        emailService.sendOrderConfirmation(order);
+        log.info("[ORDER CONFIRMED] {} — confirmation email dispatched.", order.getOrderNumber());
     }
 
     @Transactional
@@ -203,7 +207,9 @@ public class OrderService {
         }
 
         order.setStatus(newStatus);
-        return toResponse(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+        emailService.sendStatusUpdate(saved);
+        return toResponse(saved);
     }
 
     public long countPending() {

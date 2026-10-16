@@ -53,14 +53,15 @@ public class PaymentService {
         }
         payment = paymentRepository.save(payment);
 
+        // For COD / dummy: mark immediately. For Razorpay INITIATED, we wait for verify().
         if (result.status() == PaymentGatewayService.GatewayStatus.SUCCESS) {
             orderService.markConfirmedAndDecrementStock(order.getId());
         } else if (result.status() == PaymentGatewayService.GatewayStatus.FAILED) {
             orderService.markFailed(order.getId());
         }
-        // INITIATED (COD) leaves the order PENDING until delivery/settlement in a real flow.
 
-        return toResponse(payment, gateway.providerName(), result.message());
+        return toResponse(payment, gateway.providerName(), result.message(),
+                result.razorpayOrderId(), result.razorpayKeyId());
     }
 
     @Transactional
@@ -78,7 +79,7 @@ public class PaymentService {
             orderService.markConfirmedAndDecrementStock(payment.getOrder().getId());
         }
 
-        return toResponse(payment, gateway.providerName(), result.message());
+        return toResponse(payment, gateway.providerName(), result.message(), null, null);
     }
 
     public PaymentResponse getStatus(Long paymentId) {
@@ -86,7 +87,7 @@ public class PaymentService {
                 .orElseThrow(() -> ApiException.notFound("Payment not found"));
         PaymentGatewayService gateway = providerResolver.resolve();
         var status = gateway.getStatus(payment.getProviderReference());
-        return toResponse(payment, gateway.providerName(), "Status: " + status);
+        return toResponse(payment, gateway.providerName(), "Status: " + status, null, null);
     }
 
     private Payment.Status mapStatus(PaymentGatewayService.GatewayStatus status) {
@@ -97,10 +98,12 @@ public class PaymentService {
         };
     }
 
-    private PaymentResponse toResponse(Payment p, String providerName, String message) {
+    private PaymentResponse toResponse(Payment p, String providerName, String message,
+                                        String razorpayOrderId, String razorpayKeyId) {
         boolean testMode = "dummy".equals(providerName);
         return new PaymentResponse(p.getId(), p.getOrder().getId(), p.getMethod().name(), p.getStatus().name(),
                 p.getAmount(), p.getProvider(), p.getProviderReference(),
-                p.getFailureReason() != null ? p.getFailureReason() : message, testMode);
+                p.getFailureReason() != null ? p.getFailureReason() : message,
+                testMode, razorpayOrderId, razorpayKeyId);
     }
 }

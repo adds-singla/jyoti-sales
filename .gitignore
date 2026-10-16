@@ -1,3 +1,21 @@
+# Environment secrets — never commit these
 .env
+.env.local
+.env.production
+jyoti-sales-frontend/.env
+jyoti-sales-backend/.env
+
+# Firebase service account — private key, never commit
+firebase-service-account.json
+*firebase-adminsdk*.json
+
+# Logs
 *.log
+
+# Mac
 .DS_Store
+
+# Build output
+target/
+dist/
+node_modules/

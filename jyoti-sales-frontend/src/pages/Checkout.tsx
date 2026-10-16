@@ -1,18 +1,54 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence, useMotionValue } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { api, apiErrorMessage } from '../lib/api'
 import { Address, User } from '../types'
 import { formatINR } from '../lib/format'
 import { useCart } from '../lib/useCart'
 import { useAuthStore } from '../store/authStore'
-import { CreditCard, Smartphone, Landmark, Banknote, ShieldAlert, CheckCircle2, XCircle, Plus, MapPin } from 'lucide-react'
+import { Banknote, CheckCircle2, XCircle, Plus, MapPin, ShieldCheck } from 'lucide-react'
 import Confetti from '../components/Confetti'
 import clsx from 'clsx'
 
-type Method = 'CARD' | 'UPI' | 'NET_BANKING' | 'COD'
 type Step = 'address' | 'payment' | 'processing' | 'result'
+
+// Razorpay global type
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance
+  }
+}
+interface RazorpayOptions {
+  key: string
+  amount: number
+  currency: string
+  name: string
+  description: string
+  order_id: string
+  prefill?: { name?: string; email?: string; contact?: string }
+  theme?: { color?: string }
+  handler: (response: RazorpayResponse) => void
+  modal?: { ondismiss?: () => void }
+}
+interface RazorpayResponse {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
+}
+interface RazorpayInstance { open(): void }
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (document.getElementById('razorpay-script')) { resolve(true); return }
+    const script = document.createElement('script')
+    script.id = 'razorpay-script'
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
+}
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -21,13 +57,16 @@ export default function Checkout() {
   const { accessToken, fullName } = useAuthStore()
   const [step, setStep] = useState<Step>('address')
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
-  const [method, setMethod] = useState<Method>('CARD')
+  const [method, setMethod] = useState<'ONLINE' | 'COD'>('ONLINE')
   const [orderId, setOrderId] = useState<number | null>(null)
   const [orderTotal, setOrderTotal] = useState(0)
-  const [result, setResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null)
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const [error, setError] = useState('')
 
-  const [newAddress, setNewAddress] = useState({ label: 'Home', recipientName: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', isDefault: true })
+  const [newAddress, setNewAddress] = useState({
+    label: 'Home', recipientName: '', phone: '', line1: '',
+    line2: '', city: '', state: '', pincode: '', isDefault: true,
+  })
   const [showAddressForm, setShowAddressForm] = useState(false)
 
   const { data: addresses, refetch: refetchAddresses } = useQuery({
@@ -36,14 +75,12 @@ export default function Checkout() {
     enabled: !!accessToken,
   })
 
-  // Fetch user profile to auto-fill name & phone
   const { data: user } = useQuery({
     queryKey: ['me'],
     queryFn: async () => (await api.get<User>('/users/me')).data,
     enabled: !!accessToken,
   })
 
-  // Auto-select default address
   useEffect(() => {
     if (addresses && addresses.length > 0 && !selectedAddress) {
       const def = addresses.find((a) => a.isDefault)
@@ -51,28 +88,18 @@ export default function Checkout() {
     }
   }, [addresses])
 
-  // payment form state
-  const [card, setCard] = useState({ number: '', expiry: '', cvv: '' })
-  const [upiId, setUpiId] = useState('')
-  const [bankCode, setBankCode] = useState('HDFC')
-  const [flipped, setFlipped] = useState(false)
-  const dragX = useMotionValue(0)
-  const [swiped, setSwiped] = useState(false)
-
   function openNewAddressForm() {
-    // Auto-fill name & phone from user profile
     setNewAddress({
       label: 'Home',
       recipientName: user?.fullName || fullName || '',
       phone: user?.phone || '',
       line1: '', line2: '', city: '', state: '', pincode: '',
-      isDefault: !addresses?.length, // default if no other addresses
+      isDefault: !addresses?.length,
     })
     setShowAddressForm(true)
   }
 
   async function saveAddress() {
-    // Validation
     if (!newAddress.recipientName.trim()) { setError('Please enter recipient name.'); return }
     if (!newAddress.phone.trim()) { setError('Please enter phone number.'); return }
     if (!newAddress.line1.trim()) { setError('Please enter address line 1.'); return }
@@ -103,43 +130,86 @@ export default function Checkout() {
     }
   }
 
-  async function submitPayment() {
+  // ── COD placement ────────────────────────────────────────────────────────
+  async function handleCOD() {
     if (!orderId) return
     setStep('processing')
-    setError('')
     try {
-      const payload: any = { orderId, method }
-      if (method === 'CARD') {
-        payload.cardNumber = card.number.replace(/\s/g, '')
-        payload.cardExpiry = card.expiry
-        payload.cardCvv = card.cvv
-      } else if (method === 'UPI') {
-        payload.upiId = upiId
-      } else if (method === 'NET_BANKING') {
-        payload.bankCode = bankCode
-      }
-      const res = await api.post('/payments/initiate', payload)
+      await api.post('/payments/initiate', { orderId, method: 'COD' })
       qc.invalidateQueries({ queryKey: ['cart'] })
-      if (res.data.status === 'SUCCESS') {
-        setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
-      } else if (res.data.status === 'INITIATED' && method === 'COD') {
-        setResult({ success: true, message: 'Order placed! Pay cash on delivery.' })
-      } else {
-        setResult({ success: false, message: res.data.failureReason || 'Payment failed. Please try another method.' })
-      }
+      setResult({ success: true, message: 'Order placed! Pay cash on delivery.' })
+    } catch (e) {
+      setResult({ success: false, message: apiErrorMessage(e) })
+    }
+    setStep('result')
+  }
+
+  // ── Razorpay online payment ──────────────────────────────────────────────
+  async function handleRazorpay() {
+    if (!orderId) return
+    setStep('processing')
+
+    const loaded = await loadRazorpayScript()
+    if (!loaded || !window.Razorpay) {
+      setResult({ success: false, message: 'Failed to load Razorpay. Check your internet connection.' })
       setStep('result')
+      return
+    }
+
+    try {
+      // Step 1: Create Razorpay order on backend
+      const { data } = await api.post('/payments/initiate', { orderId, method: 'CARD' })
+
+      if (!data.razorpayOrderId || !data.razorpayKeyId) {
+        setResult({ success: false, message: 'Could not create payment order. Please try again.' })
+        setStep('result')
+        return
+      }
+
+      // Step 2: Open Razorpay modal
+      setStep('processing') // keep spinner behind the modal
+      const rzp = new window.Razorpay({
+        key: data.razorpayKeyId,
+        amount: Math.round(orderTotal * 100), // paise
+        currency: 'INR',
+        name: 'Jyoti Sales',
+        description: `Order #${orderId}`,
+        order_id: data.razorpayOrderId,
+        prefill: {
+          name: user?.fullName || fullName || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: { color: '#F2A65A' },
+        handler: async (response: RazorpayResponse) => {
+          // Step 3: Verify signature on backend
+          try {
+            await api.post('/payments/razorpay/verify', {
+              paymentId: data.paymentId,
+              razorpayOrderId:  response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            })
+            qc.invalidateQueries({ queryKey: ['cart'] })
+            setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
+          } catch (e) {
+            setResult({ success: false, message: 'Payment captured but verification failed. Please contact support.' })
+          }
+          setStep('result')
+        },
+        modal: {
+          ondismiss: () => {
+            // User closed the modal without paying
+            setResult({ success: false, message: 'Payment cancelled. Your order is saved — try again anytime.' })
+            setStep('result')
+          },
+        },
+      })
+
+      rzp.open()
     } catch (e) {
       setResult({ success: false, message: apiErrorMessage(e) })
       setStep('result')
-    }
-  }
-
-  function handleDragEnd() {
-    if (dragX.get() > 180) {
-      setSwiped(true)
-      submitPayment()
-    } else {
-      dragX.set(0)
     }
   }
 
@@ -150,31 +220,41 @@ export default function Checkout() {
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
       <h1 className="font-display text-2xl font-bold mb-2">Checkout</h1>
+
+      {/* Step indicator */}
       <div className="flex gap-2 text-xs text-ink/40 mb-8">
-        <span className={step === 'address' ? 'text-coral' : ''}>1. Address</span> →
-        <span className={step === 'payment' ? 'text-coral' : ''}>2. Payment</span> →
-        <span className={step === 'result' ? 'text-coral' : ''}>3. Confirmation</span>
+        {(['address', 'payment', 'result'] as const).map((s, i) => (
+          <span key={s} className="flex items-center gap-1">
+            {i > 0 && <span>→</span>}
+            <span className={step === s ? 'text-coral font-semibold' : ''}>
+              {i + 1}. {s.charAt(0).toUpperCase() + s.slice(1)}
+            </span>
+          </span>
+        ))}
       </div>
 
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
+      {/* ── Step 1: Address ── */}
       {step === 'address' && (
         <div className="space-y-4">
           <h2 className="font-semibold text-sm flex items-center gap-2 text-ink/60">
             <MapPin className="h-4 w-4" /> Select Delivery Address
           </h2>
 
-          {/* Saved addresses */}
           {addresses?.map((a) => (
             <label
               key={a.id}
               className={clsx(
                 'block glass rounded-card p-4 border cursor-pointer transition-all',
-                selectedAddress === a.id ? 'border-coral shadow-[0_0_12px_rgba(242,166,90,0.1)]' : 'border-hairline/10 hover:border-hairline/30'
+                selectedAddress === a.id
+                  ? 'border-coral shadow-[0_0_12px_rgba(242,166,90,0.1)]'
+                  : 'border-hairline/10 hover:border-hairline/30',
               )}
             >
               <div className="flex items-start gap-3">
-                <input type="radio" name="address" className="mt-1 accent-[hsl(var(--coral))]" checked={selectedAddress === a.id} onChange={() => setSelectedAddress(a.id)} />
+                <input type="radio" name="address" className="mt-1 accent-[hsl(var(--coral))]"
+                  checked={selectedAddress === a.id} onChange={() => setSelectedAddress(a.id)} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">{a.label}</span>
@@ -183,271 +263,177 @@ export default function Checkout() {
                     )}
                   </div>
                   <p className="text-sm mt-1">{a.recipientName} · {a.phone}</p>
-                  <p className="text-sm text-ink/50 mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city}, {a.state} {a.pincode}</p>
+                  <p className="text-sm text-ink/50 mt-0.5">
+                    {a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city}, {a.state} {a.pincode}
+                  </p>
                 </div>
               </div>
             </label>
           ))}
 
-          {/* Add new address */}
           {!showAddressForm ? (
-            <button onClick={openNewAddressForm} className="flex items-center gap-2 text-sm text-coral hover:text-coral/80 transition-colors">
+            <button onClick={openNewAddressForm}
+              className="flex items-center gap-2 text-sm text-coral hover:text-coral/80 transition-colors">
               <Plus className="h-4 w-4" /> Add new address
             </button>
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-card p-5 border border-coral/20 space-y-3"
-            >
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="glass rounded-card p-5 border border-coral/20 space-y-3">
               <h3 className="font-semibold text-sm mb-1">New Delivery Address</h3>
 
-              {/* Label selector */}
               <div>
                 <label className="text-xs text-ink/40 mb-1 block">Address Type</label>
                 <div className="flex gap-2">
                   {['Home', 'Work', 'Office', 'Other'].map((lbl) => (
-                    <button
-                      key={lbl}
-                      onClick={() => setNewAddress((f) => ({ ...f, label: lbl }))}
-                      className={clsx(
-                        'px-3 py-1.5 rounded-full text-xs border transition-colors',
-                        newAddress.label === lbl ? 'border-coral text-coral bg-coral/10' : 'border-hairline/15 text-ink/50'
-                      )}
-                    >
+                    <button key={lbl} onClick={() => setNewAddress((f) => ({ ...f, label: lbl }))}
+                      className={clsx('px-3 py-1.5 rounded-full text-xs border transition-colors',
+                        newAddress.label === lbl ? 'border-coral text-coral bg-coral/10' : 'border-hairline/15 text-ink/50')}>
                       {lbl}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Name & Phone */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-ink/40 mb-1 block">Recipient Name *</label>
-                  <input
-                    placeholder="Full name"
-                    className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                    value={newAddress.recipientName}
-                    onChange={(e) => setNewAddress((f) => ({ ...f, recipientName: e.target.value }))}
-                  />
+                  <input placeholder="Full name" className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
+                    value={newAddress.recipientName} onChange={(e) => setNewAddress((f) => ({ ...f, recipientName: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs text-ink/40 mb-1 block">Phone Number *</label>
-                  <input
-                    placeholder="10-digit mobile"
-                    className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                    value={newAddress.phone}
-                    onChange={(e) => setNewAddress((f) => ({ ...f, phone: e.target.value }))}
-                  />
+                  <input placeholder="10-digit mobile" className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
+                    value={newAddress.phone} onChange={(e) => setNewAddress((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
               </div>
 
-              {/* Address lines */}
               <div>
                 <label className="text-xs text-ink/40 mb-1 block">Address Line 1 *</label>
-                <input
-                  placeholder="House no., Building, Street"
-                  className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                  value={newAddress.line1}
-                  onChange={(e) => setNewAddress((f) => ({ ...f, line1: e.target.value }))}
-                />
+                <input placeholder="House no., Building, Street" className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
+                  value={newAddress.line1} onChange={(e) => setNewAddress((f) => ({ ...f, line1: e.target.value }))} />
               </div>
               <div>
                 <label className="text-xs text-ink/40 mb-1 block">Address Line 2</label>
-                <input
-                  placeholder="Locality, Landmark (optional)"
-                  className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                  value={newAddress.line2}
-                  onChange={(e) => setNewAddress((f) => ({ ...f, line2: e.target.value }))}
-                />
+                <input placeholder="Locality, Landmark (optional)" className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
+                  value={newAddress.line2} onChange={(e) => setNewAddress((f) => ({ ...f, line2: e.target.value }))} />
               </div>
 
-              {/* City, State, Pincode */}
               <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs text-ink/40 mb-1 block">City *</label>
-                  <input
-                    placeholder="City"
-                    className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                    value={newAddress.city}
-                    onChange={(e) => setNewAddress((f) => ({ ...f, city: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-ink/40 mb-1 block">State *</label>
-                  <input
-                    placeholder="State"
-                    className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                    value={newAddress.state}
-                    onChange={(e) => setNewAddress((f) => ({ ...f, state: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-ink/40 mb-1 block">Pincode *</label>
-                  <input
-                    placeholder="6-digit"
-                    className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
-                    value={newAddress.pincode}
-                    onChange={(e) => setNewAddress((f) => ({ ...f, pincode: e.target.value }))}
-                  />
-                </div>
+                {[['city', 'City *'], ['state', 'State *'], ['pincode', 'Pincode *']].map(([field, lbl]) => (
+                  <div key={field}>
+                    <label className="text-xs text-ink/40 mb-1 block">{lbl}</label>
+                    <input placeholder={lbl.replace(' *', '')}
+                      className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm"
+                      value={(newAddress as any)[field]}
+                      onChange={(e) => setNewAddress((f) => ({ ...f, [field]: e.target.value }))} />
+                  </div>
+                ))}
               </div>
 
-              {/* Save as default */}
               <label className="flex items-center gap-2 text-sm text-ink/60">
-                <input
-                  type="checkbox"
-                  checked={newAddress.isDefault}
-                  onChange={(e) => setNewAddress((f) => ({ ...f, isDefault: e.target.checked }))}
-                  className="rounded"
-                />
-                Save as default address for future orders
+                <input type="checkbox" checked={newAddress.isDefault} className="rounded"
+                  onChange={(e) => setNewAddress((f) => ({ ...f, isDefault: e.target.checked }))} />
+                Save as default address
               </label>
 
               <div className="flex gap-2">
-                <button onClick={saveAddress} className="rounded-full bg-coral text-onaccent px-5 py-2 text-sm font-semibold hover:shadow-glow transition-shadow">
+                <button onClick={saveAddress}
+                  className="rounded-full bg-coral text-white px-5 py-2 text-sm font-semibold hover:shadow-glow transition-shadow">
                   Save Address
                 </button>
-                <button onClick={() => setShowAddressForm(false)} className="rounded-full border border-hairline/15 px-5 py-2 text-sm text-ink/50 hover:bg-panel transition-colors">
+                <button onClick={() => setShowAddressForm(false)}
+                  className="rounded-full border border-hairline/15 px-5 py-2 text-sm text-ink/50 hover:bg-panel transition-colors">
                   Cancel
                 </button>
               </div>
             </motion.div>
           )}
 
-          <button onClick={placeOrder} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 mt-4 hover:shadow-glow transition-shadow">
+          <button onClick={placeOrder}
+            className="w-full rounded-full bg-coral text-white font-semibold py-3 mt-4 hover:shadow-glow transition-shadow">
             Continue to Payment · {formatINR(cart.total)}
           </button>
         </div>
       )}
 
+      {/* ── Step 2: Payment method ── */}
       {step === 'payment' && (
-        <div>
-          <div className="flex items-center gap-2 mb-4 text-xs text-coral bg-coral/10 border border-coral/30 rounded-lg px-3 py-2">
-            <ShieldAlert className="h-4 w-4 shrink-0" />
-            Sandbox / Test Mode — no real money is charged. This is a dummy payment gateway seeded for demo purposes.
-          </div>
+        <AnimatePresence>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
 
-          <div className="grid grid-cols-4 gap-2 mb-6">
-            {[
-              { id: 'CARD', label: 'Card', icon: CreditCard },
-              { id: 'UPI', label: 'UPI', icon: Smartphone },
-              { id: 'NET_BANKING', label: 'Net Banking', icon: Landmark },
-              { id: 'COD', label: 'COD', icon: Banknote },
-            ].map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setMethod(id as Method)}
-                className={`flex flex-col items-center gap-1 rounded-card py-3 border text-xs ${method === id ? 'border-coral text-coral bg-coral/10' : 'border-hairline/15 text-ink/60'}`}>
-                <Icon className="h-5 w-5" /> {label}
+            {/* Order summary strip */}
+            <div className="glass rounded-card p-4 border border-hairline/10 flex justify-between items-center">
+              <span className="text-sm text-ink/60">Order Total</span>
+              <span className="font-bold text-lg text-coral">{formatINR(orderTotal)}</span>
+            </div>
+
+            {/* Method cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setMethod('ONLINE')}
+                className={clsx(
+                  'flex flex-col items-center gap-2 rounded-2xl py-6 border-2 transition-all',
+                  method === 'ONLINE'
+                    ? 'border-coral bg-coral/10 shadow-[0_0_20px_rgba(242,166,90,0.15)]'
+                    : 'border-hairline/15 hover:border-hairline/30',
+                )}
+              >
+                <ShieldCheck className={clsx('h-7 w-7', method === 'ONLINE' ? 'text-coral' : 'text-ink/40')} />
+                <div className="text-center">
+                  <p className="font-semibold text-sm">Pay Online</p>
+                  <p className="text-[11px] text-ink/40 mt-0.5">Card · UPI · Net Banking · Wallet</p>
+                </div>
               </button>
-            ))}
-          </div>
 
-          {method === 'CARD' && (
-            <div className="space-y-4">
-              <div className="[perspective:1000px] mx-auto max-w-sm h-52">
-                <motion.div
-                  className="relative w-full h-full [transform-style:preserve-3d]"
-                  animate={{ rotateY: flipped ? 180 : 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <div className="absolute inset-0 [backface-visibility:hidden] rounded-2xl bg-gradient-to-br from-panel to-surface2 border border-hairline/15 p-5 flex flex-col justify-between shadow-glow">
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs text-ink/40">Jyoti Sales Test Card</span>
-                      <span className="text-[10px] bg-coral/20 text-coral px-2 py-0.5 rounded-full">TEST MODE</span>
-                    </div>
-                    <p className="font-mono text-lg tracking-widest">{card.number || '•••• •••• •••• ••••'}</p>
-                    <div className="flex justify-between text-xs text-ink/50">
-                      <span>{card.expiry || 'MM/YY'}</span>
-                      <span>{detectCardType(card.number)}</span>
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl bg-gradient-to-br from-panel to-surface2 border border-hairline/15 p-5">
-                    <div className="h-10 bg-black/60 mt-2 rounded" />
-                    <div className="mt-6 flex justify-end">
-                      <div className="bg-white text-black text-sm font-mono px-3 py-1 rounded">{card.cvv || 'CVV'}</div>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-
-              <input
-                placeholder="Card Number (try 4111 1111 1111 1111)"
-                value={card.number}
-                onChange={(e) => setCard((c) => ({ ...c, number: formatCardNumber(e.target.value) }))}
-                maxLength={19}
-                className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm font-mono"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input placeholder="MM/YY" value={card.expiry} onChange={(e) => setCard((c) => ({ ...c, expiry: e.target.value }))}
-                  className="bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm font-mono" />
-                <input placeholder="CVV" value={card.cvv} onFocus={() => setFlipped(true)} onBlur={() => setFlipped(false)}
-                  onChange={(e) => setCard((c) => ({ ...c, cvv: e.target.value }))}
-                  className="bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm font-mono" maxLength={3} />
-              </div>
-              <p className="text-[11px] text-ink/30">Test cards: •••1111 → success · •••0002 → declined · any other valid Luhn number → success</p>
-
-              <button onClick={submitPayment} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 hover:shadow-glow transition-shadow">
-                Pay {formatINR(orderTotal)}
+              <button
+                onClick={() => setMethod('COD')}
+                className={clsx(
+                  'flex flex-col items-center gap-2 rounded-2xl py-6 border-2 transition-all',
+                  method === 'COD'
+                    ? 'border-coral bg-coral/10 shadow-[0_0_20px_rgba(242,166,90,0.15)]'
+                    : 'border-hairline/15 hover:border-hairline/30',
+                )}
+              >
+                <Banknote className={clsx('h-7 w-7', method === 'COD' ? 'text-coral' : 'text-ink/40')} />
+                <div className="text-center">
+                  <p className="font-semibold text-sm">Cash on Delivery</p>
+                  <p className="text-[11px] text-ink/40 mt-0.5">Pay when you receive</p>
+                </div>
               </button>
             </div>
-          )}
 
-          {method === 'UPI' && (
-            <div className="space-y-4">
-              <input placeholder="yourname@upi (try success@upi or failure@upi)" value={upiId} onChange={(e) => setUpiId(e.target.value)}
-                className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm" />
-              <div className="glass rounded-card p-6 flex flex-col items-center gap-2 border border-hairline/10">
-                <div className="h-32 w-32 bg-white rounded-lg flex items-center justify-center text-onaccent text-xs font-mono">MOCK QR</div>
-                <p className="text-xs text-ink/40">Simulated UPI QR — scan is not required in test mode</p>
-              </div>
-              <button onClick={submitPayment} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 hover:shadow-glow transition-shadow">
-                Pay {formatINR(orderTotal)}
-              </button>
-            </div>
-          )}
+            {/* Razorpay trust badges */}
+            {method === 'ONLINE' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="flex items-center gap-3 text-xs text-ink/40 bg-panel border border-hairline/10 rounded-xl px-4 py-3">
+                <ShieldCheck className="h-4 w-4 text-green-400 shrink-0" />
+                Secured by Razorpay · 256-bit SSL · Supports UPI, Cards, Net Banking & Wallets
+              </motion.div>
+            )}
 
-          {method === 'NET_BANKING' && (
-            <div className="space-y-4">
-              <select value={bankCode} onChange={(e) => setBankCode(e.target.value)}
-                className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm">
-                <option value="HDFC">HDFC Bank</option>
-                <option value="SBI">State Bank of India</option>
-                <option value="ICICI">ICICI Bank</option>
-                <option value="FAILBANK">FAILBANK (test decline)</option>
-              </select>
-              <button onClick={submitPayment} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 hover:shadow-glow transition-shadow">
-                Pay {formatINR(orderTotal)}
-              </button>
-            </div>
-          )}
+            {method === 'COD' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="text-sm text-ink/60 bg-panel border border-hairline/10 rounded-xl px-4 py-3">
+                Pay with cash when your order arrives at your doorstep. No extra charges.
+              </motion.div>
+            )}
 
-          {method === 'COD' && (
-            <div className="space-y-4">
-              <p className="text-sm text-ink/60">Pay with cash when your order is delivered.</p>
-              <div className="relative h-14 rounded-full bg-panel border border-hairline/15 overflow-hidden select-none">
-                <motion.div
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 220 }}
-                  dragElastic={0.1}
-                  style={{ x: dragX }}
-                  onDragEnd={handleDragEnd}
-                  className="absolute top-1 left-1 h-12 w-12 rounded-full bg-coral flex items-center justify-center text-onaccent font-bold cursor-grab active:cursor-grabbing"
-                >
-                  →
-                </motion.div>
-                <p className="absolute inset-0 flex items-center justify-center text-sm text-ink/40">
-                  {swiped ? 'Processing…' : 'Swipe to place order (simulated)'}
-                </p>
-              </div>
-              <button onClick={submitPayment} className="w-full rounded-full border border-hairline/20 py-2 text-sm text-ink/60">
-                Or tap to place order
-              </button>
-            </div>
-          )}
-        </div>
+            {/* CTA */}
+            <button
+              onClick={method === 'COD' ? handleCOD : handleRazorpay}
+              className="w-full rounded-full bg-coral text-white font-semibold py-3.5 hover:shadow-glow transition-shadow text-base"
+            >
+              {method === 'COD' ? 'Place Order (COD)' : `Pay ${formatINR(orderTotal)} Securely`}
+            </button>
+
+            <p className="text-center text-xs text-ink/30">
+              By continuing, you agree to our Terms of Service
+            </p>
+          </motion.div>
+        </AnimatePresence>
       )}
 
+      {/* ── Processing spinner ── */}
       {step === 'processing' && (
         <div className="text-center py-24">
           <motion.div
@@ -455,47 +441,44 @@ export default function Checkout() {
             transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
             className="h-10 w-10 border-4 border-coral border-t-transparent rounded-full mx-auto mb-4"
           />
-          <p className="text-ink/60">Processing payment via dummy gateway (test mode)...</p>
+          <p className="text-ink/60">Processing your payment…</p>
         </div>
       )}
 
+      {/* ── Result ── */}
       {step === 'result' && result && (
         <div className="relative text-center py-16">
           {result.success && <Confetti />}
           {result.success ? (
-            <CheckCircle2 className="h-16 w-16 text-plum mx-auto mb-4" />
+            <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto mb-4" />
           ) : (
             <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
           )}
-          <h2 className="font-display text-xl font-bold mb-2">{result.success ? 'Order Confirmed!' : 'Payment Failed'}</h2>
-          <p className="text-ink/60 mb-6">{result.message}</p>
+          <h2 className="font-display text-xl font-bold mb-2">
+            {result.success ? 'Order Confirmed! 🎉' : 'Payment Failed'}
+          </h2>
+          <p className="text-ink/60 mb-6 max-w-sm mx-auto">{result.message}</p>
           <div className="flex gap-3 justify-center">
             {result.success ? (
-              <button onClick={() => navigate('/profile')} className="rounded-full bg-coral text-onaccent px-6 py-3 font-semibold">
+              <button onClick={() => navigate('/profile')}
+                className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow">
                 View My Orders
               </button>
             ) : (
-              <button onClick={() => setStep('payment')} className="rounded-full bg-coral text-onaccent px-6 py-3 font-semibold">
-                Try Again
-              </button>
+              <>
+                <button onClick={() => setStep('payment')}
+                  className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow">
+                  Try Again
+                </button>
+                <button onClick={() => navigate('/')}
+                  className="rounded-full border border-hairline/20 px-6 py-3 text-sm text-ink/60">
+                  Continue Shopping
+                </button>
+              </>
             )}
           </div>
         </div>
       )}
     </div>
   )
-}
-
-function formatCardNumber(v: string) {
-  const digits = v.replace(/\D/g, '').slice(0, 16)
-  return digits.replace(/(.{4})/g, '$1 ').trim()
-}
-
-function detectCardType(number: string) {
-  const digits = number.replace(/\s/g, '')
-  if (digits.startsWith('4')) return 'VISA'
-  if (/^5[1-5]/.test(digits)) return 'MASTERCARD'
-  if (/^3[47]/.test(digits)) return 'AMEX'
-  if (digits.startsWith('6')) return 'RUPAY'
-  return ''
 }

@@ -5,6 +5,7 @@ import { Order, OrderItem } from '../../types'
 import { formatINR } from '../../lib/format'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Package, ChevronDown, ChevronUp, CheckCircle2, Clock, Truck, XCircle, AlertCircle, RefreshCw, User } from 'lucide-react'
+import InvoiceDownloadButton from '../../components/InvoiceDownloadButton'
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] as const
 
@@ -245,6 +246,11 @@ export default function AdminOrders() {
                               {o.customerEmail && <span className="ml-2">({o.customerEmail})</span>}
                             </div>
                           )}
+
+                          {/* Invoice download */}
+                          <div className="pt-1 border-t border-hairline/10">
+                            <InvoiceDownloadButton orderId={o.id} orderNumber={o.orderNumber} apiPath="/admin/orders" />
+                          </div>
 
                           {/* Status update */}
                           {isActive && (

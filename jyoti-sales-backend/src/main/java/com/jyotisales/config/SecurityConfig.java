@@ -77,6 +77,8 @@ public class SecurityConfig {
                         "/api/banners/**", "/api/reviews/product/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                // Razorpay calls this server-to-server (no JWT). Secured by HMAC signature inside the controller.
+                .requestMatchers(HttpMethod.POST, "/api/payments/razorpay/webhook").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

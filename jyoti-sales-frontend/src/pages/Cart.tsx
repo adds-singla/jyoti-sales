@@ -85,7 +85,10 @@ export default function Cart() {
               Proceed to Checkout
             </Link>
           ) : (
-            <Link to="/login" className="block text-center rounded-full bg-coral text-onaccent font-semibold py-3">
+            <Link
+              to="/login?redirect=%2Fcheckout"
+              className="block text-center rounded-full bg-coral text-onaccent font-semibold py-3 hover:opacity-90 transition-opacity"
+            >
               Log in to Checkout
             </Link>
           )}

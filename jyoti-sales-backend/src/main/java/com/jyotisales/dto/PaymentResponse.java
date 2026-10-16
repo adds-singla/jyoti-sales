@@ -11,5 +11,8 @@ public record PaymentResponse(
         String provider,
         String providerReference,
         String failureReason,
-        boolean testMode
+        boolean testMode,
+        // Razorpay-specific fields (null for dummy/COD)
+        String razorpayOrderId,
+        String razorpayKeyId
 ) {}

@@ -32,6 +32,25 @@ spring:
       max-file-size: 10MB
       max-request-size: 20MB
 
+  # ---- Email (SMTP) ----
+  # Works with Gmail App Password, Zoho, AWS SES, or any SMTP provider.
+  # Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in your env.
+  mail:
+    host:     ${MAIL_HOST:smtp.gmail.com}
+    port:     ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:noreply@jyotisales.in}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 app:
   jwt:
     secret: ${JWT_SECRET:change-this-super-secret-key-min-32-chars-long-please}
@@ -47,6 +66,15 @@ app:
     gstin: ${BIZ_GSTIN:[[GSTIN]]}
   payment:
     provider: ${PAYMENT_PROVIDER:dummy}  # dummy | razorpay | payu
+  frontend-url: ${FRONTEND_URL:https://jyotisales.in}
+
+firebase:
+  service-account: ${FIREBASE_SERVICE_ACCOUNT:classpath:firebase-service-account.json}
+
+razorpay:
+  key-id:        ${RAZORPAY_KEY_ID:rzp_test_placeholder}
+  key-secret:    ${RAZORPAY_KEY_SECRET:placeholder_secret}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
 
 springdoc:
   swagger-ui:
