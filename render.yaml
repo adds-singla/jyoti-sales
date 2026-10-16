@@ -1,10 +1,10 @@
 services:
   - type: web
     name: jyoti-sales-api
-    runtime: java
+    runtime: docker
     plan: free
-    buildCommand: cd jyoti-sales-backend && mvn package -DskipTests -q
-    startCommand: java -jar jyoti-sales-backend/target/jyoti-sales-backend-1.0.0.jar
+    dockerfilePath: ./jyoti-sales-backend/Dockerfile
+    dockerContext: ./jyoti-sales-backend
     healthCheckPath: /api/categories
     envVars:
       - key: DB_HOST
