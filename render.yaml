@@ -3,8 +3,8 @@ services:
     name: jyoti-sales-api
     runtime: docker
     plan: free
-    dockerfilePath: ./jyoti-sales-backend/Dockerfile
-    dockerContext: ./jyoti-sales-backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/categories
     envVars:
       - key: DB_HOST
