@@ -3,6 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
   getRedirectResult,
   onAuthStateChanged,
   RecaptchaVerifier,
@@ -103,14 +106,32 @@ export default function Login() {
   async function handleGoogle() {
     if (!auth) { setError('Google login requires Firebase credentials.'); return }
     setError('')
-    setLoading(true)
-    sessionStorage.setItem('google_login_pending', '1')
+    const provider = new GoogleAuthProvider()
     try {
-      const provider = new GoogleAuthProvider()
-      await signInWithRedirect(auth, provider)
-    } catch (err) {
-      setError(apiErrorMessage(err))
-      setLoading(false)
+      // Try popup first (works on production, no state loss)
+      await setPersistence(auth, browserLocalPersistence)
+      const result = await signInWithPopup(auth, provider)
+      setLoading(true)
+      const idToken = await result.user.getIdToken()
+      const res = await api.post('/auth/firebase', { idToken })
+      setAuth(res.data)
+      navigate(redirectTo, { replace: true })
+    } catch (err: any) {
+      if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user') {
+        // Fallback to redirect if popup is blocked
+        sessionStorage.setItem('google_login_pending', '1')
+        setLoading(true)
+        try {
+          await setPersistence(auth, browserLocalPersistence)
+          await signInWithRedirect(auth, provider)
+        } catch (e) {
+          setError(apiErrorMessage(e))
+          setLoading(false)
+        }
+      } else {
+        setError(apiErrorMessage(err))
+        setLoading(false)
+      }
     }
   }
 
