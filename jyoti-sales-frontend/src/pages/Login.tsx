@@ -50,7 +50,8 @@ export default function Login() {
     // Check if we're returning from a Google redirect
     const googlePending = sessionStorage.getItem('google_login_pending')
 
-    setDebugMsg('Checking redirect result…')
+    // Clear any stale redirect flags
+    sessionStorage.removeItem('google_login_pending')
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
@@ -69,7 +70,7 @@ export default function Login() {
             setLoading(false)
           }
         } else {
-          setDebugMsg(googlePending ? 'Redirect result was null — trying auth state…' : '')
+          setDebugMsg('')
         }
       })
       .catch((err) => {
