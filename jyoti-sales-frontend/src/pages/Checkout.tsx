@@ -7,7 +7,7 @@ import { Address, User } from '../types'
 import { formatINR } from '../lib/format'
 import { useCart } from '../lib/useCart'
 import { useAuthStore } from '../store/authStore'
-import { Banknote, CheckCircle2, XCircle, Plus, MapPin, ShieldCheck } from 'lucide-react'
+import { Banknote, CheckCircle2, XCircle, Plus, MapPin, ShieldCheck, Tag, ChevronDown, X as XIcon } from 'lucide-react'
 import Confetti from '../components/Confetti'
 import clsx from 'clsx'
 
@@ -62,6 +62,10 @@ export default function Checkout() {
   const [orderTotal, setOrderTotal] = useState(0)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const [error, setError] = useState('')
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<null | { code: string; discount: number; label: string }>(null)
+  const [couponError, setCouponError] = useState('')
+  const [showCouponList, setShowCouponList] = useState(false)
 
   const [newAddress, setNewAddress] = useState({
     label: 'Home', recipientName: '', phone: '', line1: '',
@@ -72,6 +76,12 @@ export default function Checkout() {
   const { data: addresses, refetch: refetchAddresses } = useQuery({
     queryKey: ['addresses'],
     queryFn: async () => (await api.get<Address[]>('/addresses')).data,
+    enabled: !!accessToken,
+  })
+
+  const { data: activeCoupons } = useQuery({
+    queryKey: ['active-coupons'],
+    queryFn: async () => (await api.get('/coupons/active')).data as any[],
     enabled: !!accessToken,
   })
 
@@ -117,11 +127,48 @@ export default function Checkout() {
     }
   }
 
+  function calcDiscount(c: any, subtotal: number): number {
+    if (!c) return 0
+    if (subtotal < (c.minOrderValue ?? 0)) return 0
+    if (c.discountType === 'FLAT') return Math.min(c.discountValue, subtotal)
+    return parseFloat((subtotal * c.discountValue / 100).toFixed(2))
+  }
+
+  function applyCoupon(c: any) {
+    setCouponError('')
+    const subtotal = cart.total
+    if (subtotal < (c.minOrderValue ?? 0)) {
+      setCouponError(`Minimum order value ₹${c.minOrderValue} required for this coupon.`)
+      return
+    }
+    const discount = calcDiscount(c, subtotal)
+    const label = c.discountType === 'FLAT' ? `₹${c.discountValue} off` : `${c.discountValue}% off`
+    setAppliedCoupon({ code: c.code, discount, label })
+    setCouponCode(c.code)
+    setShowCouponList(false)
+    setCouponError('')
+  }
+
+  function removeCoupon() {
+    setAppliedCoupon(null)
+    setCouponCode('')
+    setCouponError('')
+  }
+
+  function applyManualCoupon() {
+    if (!couponCode.trim()) return
+    const match = activeCoupons?.find((c: any) => c.code.toLowerCase() === couponCode.trim().toLowerCase())
+    if (!match) { setCouponError('Invalid or expired coupon code.'); return }
+    applyCoupon(match)
+  }
+
+  const discountedTotal = appliedCoupon ? Math.max(0, cart.total - appliedCoupon.discount) : cart.total
+
   async function placeOrder() {
     setError('')
     if (!selectedAddress) { setError('Please select or add a delivery address.'); return }
     try {
-      const res = await api.post('/orders/checkout', { addressId: selectedAddress })
+      const res = await api.post('/orders/checkout', { addressId: selectedAddress, couponCode: appliedCoupon?.code || null })
       setOrderId(res.data.id)
       setOrderTotal(res.data.total)
       setStep('payment')
@@ -349,9 +396,116 @@ export default function Checkout() {
             </motion.div>
           )}
 
+          {/* ── Coupon Section ── */}
+          <div className="glass rounded-card border border-hairline/10 p-4 space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Tag className="h-4 w-4 text-coral" /> Apply Coupon
+            </h3>
+
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between bg-emerald-400/10 border border-emerald-400/30 rounded-xl px-4 py-3">
+                <div>
+                  <p className="font-mono font-bold text-emerald-400 text-sm">{appliedCoupon.code}</p>
+                  <p className="text-xs text-emerald-400/70 mt-0.5">{appliedCoupon.label} applied — you save {formatINR(appliedCoupon.discount)}</p>
+                </div>
+                <button onClick={removeCoupon} className="text-emerald-400/60 hover:text-red-400 transition-colors">
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Manual entry + dropdown toggle */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      value={couponCode}
+                      onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError('') }}
+                      onKeyDown={(e) => e.key === 'Enter' && applyManualCoupon()}
+                      placeholder="Enter coupon code"
+                      className="w-full bg-panel border border-hairline/15 rounded-xl px-3 py-2.5 text-sm font-mono uppercase tracking-widest focus:outline-none focus:border-coral/50 transition-colors pr-10"
+                    />
+                    <button
+                      onClick={() => setShowCouponList((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-coral transition-colors"
+                      title="Browse available coupons"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showCouponList ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                  <button
+                    onClick={applyManualCoupon}
+                    disabled={!couponCode.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-coral text-white text-sm font-semibold disabled:opacity-40 hover:shadow-glow transition-all"
+                  >
+                    Apply
+                  </button>
+                </div>
+
+                {couponError && <p className="text-red-400 text-xs">{couponError}</p>}
+
+                {/* Dropdown list */}
+                {showCouponList && (
+                  <div className="border border-hairline/15 rounded-xl overflow-hidden bg-panel shadow-xl">
+                    {!activeCoupons?.length ? (
+                      <p className="text-center text-ink/40 text-sm py-4">No coupons available right now</p>
+                    ) : (
+                      activeCoupons.map((c: any) => {
+                        const eligible = cart.total >= (c.minOrderValue ?? 0)
+                        const label = c.discountType === 'FLAT' ? `₹${c.discountValue} off` : `${c.discountValue}% off`
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => eligible && applyCoupon(c)}
+                            disabled={!eligible}
+                            className={`w-full flex items-center justify-between px-4 py-3 border-b border-hairline/10 last:border-0 text-left transition-colors ${
+                              eligible ? 'hover:bg-coral/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="bg-coral/10 rounded-lg px-2.5 py-1.5">
+                                <span className="font-mono font-bold text-coral text-xs tracking-widest">{c.code}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold">{label}</p>
+                                {c.minOrderValue > 0 && (
+                                  <p className="text-[11px] text-ink/40">Min order {formatINR(c.minOrderValue)}{!eligible ? ' — add more items' : ''}</p>
+                                )}
+                                {c.expiresAt && (
+                                  <p className="text-[11px] text-ink/30">
+                                    Expires {new Date(c.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {eligible && <span className="text-xs text-coral font-semibold shrink-0">Tap to apply</span>}
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Order total preview */}
+          {appliedCoupon && (
+            <div className="glass rounded-xl border border-hairline/10 px-4 py-3 text-sm space-y-1.5">
+              <div className="flex justify-between text-ink/60">
+                <span>Subtotal</span><span>{formatINR(cart.total)}</span>
+              </div>
+              <div className="flex justify-between text-emerald-400">
+                <span>Coupon ({appliedCoupon.code})</span><span>−{formatINR(appliedCoupon.discount)}</span>
+              </div>
+              <div className="flex justify-between font-bold border-t border-hairline/10 pt-1.5 mt-1.5">
+                <span>Total</span><span className="text-coral">{formatINR(discountedTotal)}</span>
+              </div>
+            </div>
+          )}
+
           <button onClick={placeOrder}
             className="w-full rounded-full bg-coral text-white font-semibold py-3 mt-4 hover:shadow-glow transition-shadow">
-            Continue to Payment · {formatINR(cart.total)}
+            Continue to Payment · {formatINR(discountedTotal)}
           </button>
         </div>
       )}
