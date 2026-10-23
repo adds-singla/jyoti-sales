@@ -41,6 +41,14 @@ public class OrderController {
     }
 
     /**
+     * Cancel an order — customer can cancel PENDING or CONFIRMED orders only.
+     */
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<OrderResponse> cancel(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.cancelMyOrder(CurrentUser.id(), id));
+    }
+
+    /**
      * Download PDF invoice for an order.
      * Only the order owner can download their own invoice.
      */

@@ -179,6 +179,35 @@ public class OrderService {
         return toResponse(order);
     }
 
+    @Transactional
+    public OrderResponse cancelMyOrder(Long userId, Long orderId) {
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> ApiException.notFound("Order not found"));
+        if (!order.getUser().getId().equals(userId)) throw ApiException.forbidden("Not your order");
+
+        Order.Status current = order.getStatus();
+        if (current == Order.Status.CANCELLED) throw ApiException.badRequest("Order is already cancelled");
+        if (!java.util.Set.of(Order.Status.PENDING, Order.Status.CONFIRMED).contains(current)) {
+            throw ApiException.badRequest("Order cannot be cancelled once it is " + current.name().toLowerCase() + ". Please contact support.");
+        }
+
+        // Restore stock
+        for (OrderItem oi : order.getItems()) {
+            if (oi.getVariant() != null) {
+                ProductVariant v = oi.getVariant();
+                v.setStock(v.getStock() + oi.getQuantity());
+            } else {
+                Product p = oi.getProduct();
+                p.setStock(p.getStock() + oi.getQuantity());
+                productRepository.save(p);
+            }
+        }
+
+        order.setStatus(Order.Status.CANCELLED);
+        Order saved = orderRepository.save(order);
+        emailService.sendStatusUpdate(saved);
+        return toResponse(saved);
+    }
+
     // ---- admin ----
 
     @Transactional(readOnly = true)

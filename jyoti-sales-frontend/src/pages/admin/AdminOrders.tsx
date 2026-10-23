@@ -182,6 +182,19 @@ export default function AdminOrders() {
                           {isUpdating ? '...' : '✓ Delivered'}
                         </button>
                       )}
+                      {/* Cancel quick-action — show for any active order */}
+                      {isActive && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm(`Cancel order ${o.orderNumber}? Stock will be restored.`)) quickAction(o.id, 'CANCELLED')
+                          }}
+                          disabled={isUpdating}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-400/30 hover:bg-red-500/25 transition-colors disabled:opacity-40"
+                        >
+                          {isUpdating ? '...' : 'Cancel'}
+                        </button>
+                      )}
                     </div>
 
                     {/* Expand toggle */}

@@ -32,6 +32,8 @@ export default function Profile() {
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<Tab>('orders')
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
+  const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [cancelError, setCancelError] = useState('')
 
   // Address form state
   const [showAddressForm, setShowAddressForm] = useState(false)
@@ -55,6 +57,20 @@ export default function Profile() {
     queryFn: async () => (await api.get<Address[]>('/addresses')).data,
     enabled: !!accessToken,
   })
+
+  async function cancelOrder(orderId: number) {
+    if (!confirm('Are you sure you want to cancel this order? This cannot be undone.')) return
+    setCancellingId(orderId)
+    setCancelError('')
+    try {
+      await api.patch(`/orders/${orderId}/cancel`)
+      qc.invalidateQueries({ queryKey: ['my-orders'] })
+    } catch (err: any) {
+      setCancelError(err?.response?.data?.message || 'Failed to cancel order. Please try again.')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   if (!accessToken) return <Navigate to="/login" replace />
 
@@ -276,8 +292,22 @@ export default function Profile() {
                           </div>
                         </div>
 
-                        {/* ── Download Invoice ── */}
-                        <InvoiceDownloadButton orderId={o.id} orderNumber={o.orderNumber} apiPath="/orders" />
+                        {/* ── Actions: Cancel + Invoice ── */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {/* Cancel button — only for PENDING or CONFIRMED */}
+                          {(o.status === 'PENDING' || o.status === 'CONFIRMED') && (
+                            <button
+                              onClick={() => cancelOrder(o.id)}
+                              disabled={cancellingId === o.id}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-red-400/40 text-red-400 text-xs font-semibold hover:bg-red-400/10 disabled:opacity-50 transition-colors"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              {cancellingId === o.id ? 'Cancelling…' : 'Cancel Order'}
+                            </button>
+                          )}
+                          <InvoiceDownloadButton orderId={o.id} orderNumber={o.orderNumber} apiPath="/orders" />
+                        </div>
+                        {cancelError && <p className="text-red-400 text-xs mt-1">{cancelError}</p>}
                       </div>
                     </motion.div>
                   )}
