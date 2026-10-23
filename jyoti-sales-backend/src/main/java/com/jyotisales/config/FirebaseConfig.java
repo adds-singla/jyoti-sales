@@ -5,12 +5,14 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnResource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Configuration
@@ -18,29 +20,45 @@ public class FirebaseConfig {
 
     private static final String SERVICE_ACCOUNT_PATH = "firebase-service-account.json";
 
-    /**
-     * Only registered when firebase-service-account.json is on the classpath.
-     * Place it at: jyoti-sales-backend/src/main/resources/firebase-service-account.json
-     * Or set firebase.service-account=file:/absolute/path in your env.
-     */
     @Bean
-    @ConditionalOnResource(resources = "classpath:" + SERVICE_ACCOUNT_PATH)
     public FirebaseApp firebaseApp() throws IOException {
         if (!FirebaseApp.getApps().isEmpty()) {
             return FirebaseApp.getInstance();
         }
-        GoogleCredentials credentials = GoogleCredentials
-                .fromStream(new ClassPathResource(SERVICE_ACCOUNT_PATH).getInputStream());
+
+        InputStream credentialsStream = null;
+
+        // 1. Try environment variable first (production / Render)
+        String envJson = System.getenv("FIREBASE_SERVICE_ACCOUNT_JSON");
+        if (envJson != null && !envJson.isBlank()) {
+            credentialsStream = new ByteArrayInputStream(envJson.getBytes(StandardCharsets.UTF_8));
+            log.info("[Firebase] Initialized from FIREBASE_SERVICE_ACCOUNT_JSON env var");
+        }
+
+        // 2. Fallback to classpath file (local dev)
+        if (credentialsStream == null) {
+            ClassPathResource resource = new ClassPathResource(SERVICE_ACCOUNT_PATH);
+            if (resource.exists()) {
+                credentialsStream = resource.getInputStream();
+                log.info("[Firebase] Initialized from classpath:{}", SERVICE_ACCOUNT_PATH);
+            }
+        }
+
+        if (credentialsStream == null) {
+            log.warn("[Firebase] No credentials found — Google/Phone login disabled.");
+            return null;
+        }
+
+        GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream);
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(credentials)
                 .build();
-        log.info("[Firebase] Initialized successfully from classpath:{}", SERVICE_ACCOUNT_PATH);
         return FirebaseApp.initializeApp(options);
     }
 
     @Bean
-    @ConditionalOnResource(resources = "classpath:" + SERVICE_ACCOUNT_PATH)
     public FirebaseAuth firebaseAuth(FirebaseApp app) {
+        if (app == null) return null;
         return FirebaseAuth.getInstance(app);
     }
 }
