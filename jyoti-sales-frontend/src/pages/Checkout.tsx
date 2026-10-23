@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -139,7 +139,7 @@ export default function Checkout() {
 
   function applyCoupon(c: any) {
     setCouponError('')
-    const subtotal = cart.total
+    const subtotal = cart?.total ?? 0
     if (subtotal < (c.minOrderValue ?? 0)) {
       setCouponError(`Minimum order value ₹${c.minOrderValue} required for this coupon.`)
       return
@@ -165,7 +165,7 @@ export default function Checkout() {
     applyCoupon(match)
   }
 
-  const discountedTotal = appliedCoupon ? Math.max(0, cart.total - appliedCoupon.discount) : cart.total
+  const discountedTotal = appliedCoupon ? Math.max(0, (cart?.total ?? 0) - appliedCoupon.discount) : (cart?.total ?? 0)
 
   async function placeOrder() {
     setError('')
