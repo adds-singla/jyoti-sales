@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
@@ -19,7 +20,6 @@ declare global {
   }
 }
 
-// true only when Firebase is properly configured (VITE_FIREBASE_API_KEY is set)
 const firebaseEnabled = auth !== null
 
 export default function Login() {
@@ -38,30 +38,43 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [info, setInfo] = useState('')
 
-  async function exchangeFirebaseToken(idToken: string) {
-    const res = await api.post('/auth/firebase', { idToken })
-    setAuth(res.data)
-    navigate(redirectTo, { replace: true })
-  }
+  // Handle Google redirect result on page load
+  useEffect(() => {
+    if (!auth) return
+    setLoading(true)
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          const idToken = await result.user.getIdToken()
+          const res = await api.post('/auth/firebase', { idToken })
+          setAuth(res.data)
+          navigate(redirectTo, { replace: true })
+        }
+      })
+      .catch((err) => {
+        if (err?.code !== 'auth/no-current-user') {
+          setError(apiErrorMessage(err))
+        }
+      })
+      .finally(() => setLoading(false))
+  }, []) // eslint-disable-line
 
   async function handleGoogle() {
-    if (!auth) { setError('Google login requires Firebase credentials. Add VITE_FIREBASE_* keys to .env and restart.'); return }
+    if (!auth) { setError('Google login requires Firebase credentials.'); return }
     setError('')
     setLoading(true)
     try {
       const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      const idToken = await result.user.getIdToken()
-      await exchangeFirebaseToken(idToken)
+      await signInWithRedirect(auth, provider)
+      // Page will redirect to Google and come back — result handled in useEffect above
     } catch (err) {
       setError(apiErrorMessage(err))
-    } finally {
       setLoading(false)
     }
   }
 
   async function handleSendOtp() {
-    if (!auth) { setError('Phone login requires Firebase credentials. Add VITE_FIREBASE_* keys to .env and restart.'); return }
+    if (!auth) { setError('Phone login requires Firebase credentials.'); return }
     setError('')
     setInfo('')
     const normalized = phone.startsWith('+') ? phone : `+91${phone}`
@@ -94,7 +107,9 @@ export default function Login() {
       if (!confirmRef.current) throw new Error('Please request OTP first.')
       const result = await confirmRef.current.confirm(otp)
       const idToken = await result.user.getIdToken()
-      await exchangeFirebaseToken(idToken)
+      const res = await api.post('/auth/firebase', { idToken })
+      setAuth(res.data)
+      navigate(redirectTo, { replace: true })
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
@@ -138,7 +153,7 @@ export default function Login() {
             id="btn-google-login"
             onClick={handleGoogle}
             disabled={loading}
-            title={!firebaseEnabled ? 'Configure Firebase credentials in .env to enable Google login' : undefined}
+            title={!firebaseEnabled ? 'Configure Firebase credentials to enable Google login' : undefined}
             className={`w-full flex items-center justify-center gap-3 border border-hairline/20 rounded-full py-3 text-sm font-semibold transition-all mb-6 ${
               firebaseEnabled ? 'hover:bg-base/60' : 'opacity-40 cursor-not-allowed'
             }`}
@@ -149,7 +164,7 @@ export default function Login() {
               <path fill="#FBBC05" d="M10 28.7A14.3 14.3 0 0 1 9.5 24c0-1.7.3-3.3.8-4.8L3.2 13.9A23.5 23.5 0 0 0 .5 24c0 3.8.9 7.3 2.6 10.4l6.9-5.7z"/>
               <path fill="#34A853" d="M24 47.5c6.4 0 11.8-2.1 15.7-5.7l-7.4-5.8c-2.1 1.4-4.8 2.3-8.3 2.3-6.5 0-12-4.4-14-10.3l-6.9 5.4C6.9 42 14.8 47.5 24 47.5z"/>
             </svg>
-            Continue with Google
+            {loading ? 'Redirecting…' : 'Continue with Google'}
             {!firebaseEnabled && <span className="text-[10px] text-ink/30 ml-1">(not configured)</span>}
           </button>
 
@@ -205,7 +220,7 @@ export default function Login() {
             <div className="space-y-4">
               {!firebaseEnabled && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-sm text-yellow-400">
-                  ⚠️ Phone OTP requires Firebase. Add <code className="text-xs">VITE_FIREBASE_*</code> keys to <code className="text-xs">.env</code> and restart the frontend.
+                  ⚠️ Phone OTP requires Firebase credentials.
                 </div>
               )}
               <div className="flex gap-2">
@@ -267,7 +282,7 @@ export default function Login() {
               </Link>
             </p>
             <p className="text-xs text-ink/25">
-              Demo admin: admin@jyotisales.in / Admin@123 · customer@example.com / Customer@123
+              Demo: admin@jyotisales.in / Admin@123
             </p>
           </div>
         </div>
