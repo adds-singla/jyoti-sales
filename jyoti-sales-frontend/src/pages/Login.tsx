@@ -4,9 +4,11 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
+  onAuthStateChanged,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
+  User,
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { api, apiErrorMessage } from '../lib/api'
@@ -21,6 +23,8 @@ declare global {
 }
 
 const firebaseEnabled = auth !== null
+// Flag so we only exchange token once
+let googleLoginInProgress = false
 
 export default function Login() {
   const navigate = useNavigate()
@@ -38,26 +42,53 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [info, setInfo] = useState('')
 
-  // Handle Google redirect result on page load
+  async function exchangeToken(user: User) {
+    if (googleLoginInProgress) return
+    googleLoginInProgress = true
+    try {
+      const idToken = await user.getIdToken()
+      const res = await api.post('/auth/firebase', { idToken })
+      setAuth(res.data)
+      navigate(redirectTo, { replace: true })
+    } catch (err) {
+      setError(apiErrorMessage(err))
+      setLoading(false)
+    } finally {
+      googleLoginInProgress = false
+    }
+  }
+
+  // Listen for Google redirect result on page load
   useEffect(() => {
     if (!auth) return
+
+    // First try getRedirectResult (fires immediately after Google redirect)
     setLoading(true)
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
-          const idToken = await result.user.getIdToken()
-          const res = await api.post('/auth/firebase', { idToken })
-          setAuth(res.data)
-          navigate(redirectTo, { replace: true })
+          await exchangeToken(result.user)
+        } else {
+          setLoading(false)
         }
       })
       .catch((err) => {
-        // Show all errors for debugging
-        if (true) {
-          setError(apiErrorMessage(err))
-        }
+        setError(apiErrorMessage(err))
+        setLoading(false)
       })
-      .finally(() => setLoading(false))
+
+    // Also watch auth state — fires when Firebase completes the redirect sign-in
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user && !googleLoginInProgress) {
+        // Check if this is from a Google redirect (not already logged in via email)
+        const providerIds = user.providerData.map((p) => p.providerId)
+        if (providerIds.includes('google.com')) {
+          setLoading(true)
+          await exchangeToken(user)
+        }
+      }
+    })
+    return () => unsub()
   }, []) // eslint-disable-line
 
   async function handleGoogle() {
@@ -67,7 +98,6 @@ export default function Login() {
     try {
       const provider = new GoogleAuthProvider()
       await signInWithRedirect(auth, provider)
-      // Page will redirect to Google and come back — result handled in useEffect above
     } catch (err) {
       setError(apiErrorMessage(err))
       setLoading(false)
@@ -165,7 +195,7 @@ export default function Login() {
               <path fill="#FBBC05" d="M10 28.7A14.3 14.3 0 0 1 9.5 24c0-1.7.3-3.3.8-4.8L3.2 13.9A23.5 23.5 0 0 0 .5 24c0 3.8.9 7.3 2.6 10.4l6.9-5.7z"/>
               <path fill="#34A853" d="M24 47.5c6.4 0 11.8-2.1 15.7-5.7l-7.4-5.8c-2.1 1.4-4.8 2.3-8.3 2.3-6.5 0-12-4.4-14-10.3l-6.9 5.4C6.9 42 14.8 47.5 24 47.5z"/>
             </svg>
-            {loading ? 'Redirecting…' : 'Continue with Google'}
+            {loading ? 'Signing in…' : 'Continue with Google'}
             {!firebaseEnabled && <span className="text-[10px] text-ink/30 ml-1">(not configured)</span>}
           </button>
 
@@ -243,7 +273,6 @@ export default function Login() {
                   {otpSent ? 'Resend' : loading ? '…' : 'Send OTP'}
                 </button>
               </div>
-
               {otpSent && (
                 <input
                   id="login-otp"
@@ -256,10 +285,8 @@ export default function Login() {
                   className="w-full bg-base border border-hairline/15 rounded-xl px-4 py-3 text-sm tracking-[0.4em] text-center focus:outline-none focus:border-coral/50 transition-colors"
                 />
               )}
-
               {info && <p className="text-green-400 text-sm">{info}</p>}
               {error && <p className="text-red-400 text-sm">{error}</p>}
-
               {otpSent && (
                 <button
                   id="btn-verify-otp"
