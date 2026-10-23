@@ -6,7 +6,7 @@ spring:
     name: jyoti-sales-backend
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:jyoti_sales}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:jyoti_sales}?sslmode=${DB_SSL_MODE:disable}
     username: ${DB_USER:jyoti}
     password: ${DB_PASSWORD:jyoti_pass}
     driver-class-name: org.postgresql.Driver
