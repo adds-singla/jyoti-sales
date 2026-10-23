@@ -15,6 +15,7 @@ import {
 import { auth } from '../lib/firebase'
 import { api, apiErrorMessage } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import { useCart } from '../lib/useCart'
 
 type Tab = 'email' | 'phone'
 
@@ -31,6 +32,7 @@ export default function Login() {
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
   const setAuth = useAuthStore((s) => s.setAuth)
+  const { syncGuestCartToServer } = useCart()
 
   const [tab, setTab] = useState<Tab>('email')
   const [form, setForm] = useState({ usernameOrPhone: '', password: '' })
@@ -116,6 +118,7 @@ export default function Login() {
       const idToken = await result.user.getIdToken()
       const res = await api.post('/auth/firebase', { idToken })
       setAuth(res.data)
+      await syncGuestCartToServer()
       navigate(redirectTo, { replace: true })
     } catch (err: any) {
       if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user') {
@@ -187,6 +190,7 @@ export default function Login() {
     try {
       const res = await api.post('/auth/login', form)
       setAuth(res.data)
+      await syncGuestCartToServer()
       navigate(redirectTo, { replace: true })
     } catch (err) {
       setError(apiErrorMessage(err))

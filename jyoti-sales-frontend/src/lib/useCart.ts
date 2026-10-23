@@ -78,5 +78,23 @@ export function useCart() {
     qc.invalidateQueries({ queryKey: ['cart'] })
   }
 
-  return { cart, count, isLoading: accessToken ? serverCart.isLoading : false, addToCart, updateQuantity, removeItem, applyCoupon, apiErrorMessage }
+  /** Called after login: migrates localStorage guest cart items to the server cart. */
+  async function syncGuestCartToServer() {
+    const guestItems = useGuestCartStore.getState().items
+    if (!guestItems.length) return
+    // Add each guest item to server cart (best-effort, ignore errors per item)
+    for (const item of guestItems) {
+      try {
+        await api.post('/cart/items', {
+          productId: item.productId,
+          variantId: item.variantId ?? null,
+          quantity: item.quantity,
+        })
+      } catch (_) { /* ignore individual item failures */ }
+    }
+    useGuestCartStore.getState().clear()
+    qc.invalidateQueries({ queryKey: ['cart'] })
+  }
+
+  return { cart, count, isLoading: accessToken ? serverCart.isLoading : false, addToCart, updateQuantity, removeItem, applyCoupon, syncGuestCartToServer, apiErrorMessage }
 }

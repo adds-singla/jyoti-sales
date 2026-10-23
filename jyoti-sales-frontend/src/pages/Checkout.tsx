@@ -6,6 +6,7 @@ import { api, apiErrorMessage } from '../lib/api'
 import { Address, User } from '../types'
 import { formatINR } from '../lib/format'
 import { useCart } from '../lib/useCart'
+import { useGuestCartStore } from '../store/cartStore'
 import { useAuthStore } from '../store/authStore'
 import { Banknote, CheckCircle2, XCircle, Plus, MapPin, ShieldCheck, Tag, ChevronDown, X as XIcon } from 'lucide-react'
 import Confetti from '../components/Confetti'
@@ -66,6 +67,8 @@ export default function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState<null | { code: string; discount: number; label: string }>(null)
   const [couponError, setCouponError] = useState('')
   const [showCouponList, setShowCouponList] = useState(false)
+  // Snapshot of cart items before checkout — restored on payment failure
+  const cartSnapshotRef = useRef<typeof cart | null>(null)
 
   const [newAddress, setNewAddress] = useState({
     label: 'Home', recipientName: '', phone: '', line1: '',
@@ -168,6 +171,8 @@ export default function Checkout() {
     setError('')
     if (!selectedAddress) { setError('Please select or add a delivery address.'); return }
     try {
+      // Snapshot cart before backend clears it on checkout
+      cartSnapshotRef.current = cart ? { ...cart, items: [...(cart.items || [])] } : null
       const res = await api.post('/orders/checkout', { addressId: selectedAddress, couponCode: appliedCoupon?.code || null })
       setOrderId(res.data.id)
       setOrderTotal(res.data.total)

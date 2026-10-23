@@ -19,7 +19,7 @@ export default function AdminCustomers() {
   const [search, setSearch] = useState('')
   const [togglingId, setTogglingId] = useState<number | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => (await api.get('/admin/customers', { params: { size: 100 } })).data,
   })
@@ -91,6 +91,11 @@ export default function AdminCustomers() {
       {/* Table */}
       {isLoading ? (
         <div className="text-center py-20 text-ink/40">Loading customers…</div>
+      ) : error ? (
+      <div className="text-center py-20 text-red-400">
+        <p className="font-semibold">Failed to load customers</p>
+        <p className="text-sm mt-1 text-ink/40">The server may be waking up — refresh in 30 seconds.</p>
+      </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <Users className="h-16 w-16 text-ink/10 mx-auto mb-4" />
