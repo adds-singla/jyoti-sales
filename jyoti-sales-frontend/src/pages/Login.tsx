@@ -52,7 +52,8 @@ export default function Login() {
         }
       })
       .catch((err) => {
-        if (err?.code !== 'auth/no-current-user') {
+        // Show all errors for debugging
+        if (true) {
           setError(apiErrorMessage(err))
         }
       })
