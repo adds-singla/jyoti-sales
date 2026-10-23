@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, Search, ShieldCheck, ShieldOff, Mail, Phone, Crown, User as UserIcon } from 'lucide-react'
+import { Users, Search, ShieldCheck, ShieldOff, Mail, Phone, Crown, User as UserIcon, RefreshCw, AlertTriangle } from 'lucide-react'
 
 interface CustomerSummary {
   id: number
@@ -19,9 +19,11 @@ export default function AdminCustomers() {
   const [search, setSearch] = useState('')
   const [togglingId, setTogglingId] = useState<number | null>(null)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => (await api.get('/admin/customers', { params: { size: 100 } })).data,
+    retry: 3,
+    retryDelay: 2000,
   })
 
   const customers: CustomerSummary[] = data?.content ?? []
@@ -60,8 +62,16 @@ export default function AdminCustomers() {
           </h1>
           <p className="text-sm text-ink/40 mt-1">Manage all registered users</p>
         </div>
-        {/* Stats */}
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-coral transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            {isFetching ? 'Refreshing…' : 'Refresh'}
+          </button>
+          {/* Stats */}
           <div className="glass border border-hairline/10 rounded-xl px-4 py-2 text-center">
             <p className="font-bold text-lg">{totalCustomers}</p>
             <p className="text-[10px] text-ink/40 uppercase tracking-wide">Customers</p>
@@ -77,6 +87,20 @@ export default function AdminCustomers() {
         </div>
       </div>
 
+      {/* Error state */}
+      {isError && (
+        <div className="glass rounded-xl border border-red-400/20 bg-red-400/5 px-5 py-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-red-400 text-sm">Could not load customers</p>
+            <p className="text-xs text-ink/50 mt-0.5">
+              The server may be waking up (Render free tier sleeps after 15 min of inactivity). Please wait 30 seconds and
+              <button onClick={() => refetch()} className="text-coral underline ml-1">try again</button>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/30" />
@@ -90,13 +114,11 @@ export default function AdminCustomers() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="text-center py-20 text-ink/40">Loading customers…</div>
-      ) : error ? (
-      <div className="text-center py-20 text-red-400">
-        <p className="font-semibold">Failed to load customers</p>
-        <p className="text-sm mt-1 text-ink/40">The server may be waking up — refresh in 30 seconds.</p>
-      </div>
-      ) : filtered.length === 0 ? (
+        <div className="text-center py-20">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-coral/50" />
+          <p className="text-ink/40 text-sm">Loading customers… (server may be waking up)</p>
+        </div>
+      ) : isError ? null : filtered.length === 0 ? (
         <div className="text-center py-20">
           <Users className="h-16 w-16 text-ink/10 mx-auto mb-4" />
           <p className="text-ink/40">{search ? 'No customers match your search' : 'No customers yet'}</p>
@@ -127,7 +149,6 @@ export default function AdminCustomers() {
                         animate={{ opacity: 1 }}
                         className="border-b border-hairline/10 hover:bg-panel/30 transition-colors"
                       >
-                        {/* Customer name + avatar */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
@@ -141,27 +162,21 @@ export default function AdminCustomers() {
                             </div>
                           </div>
                         </td>
-
-                        {/* Contact */}
                         <td className="px-4 py-3">
                           <div className="space-y-0.5">
                             {u.email && (
                               <p className="flex items-center gap-1.5 text-ink/60 text-xs">
-                                <Mail className="h-3 w-3 shrink-0" />
-                                {u.email}
+                                <Mail className="h-3 w-3 shrink-0" />{u.email}
                               </p>
                             )}
                             {u.phone && (
                               <p className="flex items-center gap-1.5 text-ink/60 text-xs">
-                                <Phone className="h-3 w-3 shrink-0" />
-                                {u.phone}
+                                <Phone className="h-3 w-3 shrink-0" />{u.phone}
                               </p>
                             )}
                             {!u.email && !u.phone && <span className="text-ink/30 text-xs">—</span>}
                           </div>
                         </td>
-
-                        {/* Role badge */}
                         <td className="px-4 py-3">
                           {isAdmin ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-400/15 text-amber-400 border border-amber-400/30">
@@ -173,13 +188,9 @@ export default function AdminCustomers() {
                             </span>
                           )}
                         </td>
-
-                        {/* Joined date */}
                         <td className="px-4 py-3 text-xs text-ink/50">
                           {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </td>
-
-                        {/* Status */}
                         <td className="px-4 py-3">
                           {u.blocked ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-red-400/10 text-red-400 border border-red-400/20">
@@ -191,8 +202,6 @@ export default function AdminCustomers() {
                             </span>
                           )}
                         </td>
-
-                        {/* Block / Unblock action */}
                         <td className="px-4 py-3">
                           {!isAdmin && (
                             <button
