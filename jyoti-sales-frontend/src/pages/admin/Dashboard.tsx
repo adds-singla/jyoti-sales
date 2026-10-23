@@ -15,8 +15,10 @@ export default function Dashboard() {
   const { data: stats, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['admin-dashboard'],
     queryFn: async () => (await api.get<DashboardStats>('/admin/dashboard/stats')).data,
-    retry: 3,
-    retryDelay: 2000,
+    retry: 10,
+    retryDelay: (attempt) => Math.min(3000 * (attempt + 1), 15000),
+    // Keep retrying every 8s while there's an error (backend waking up)
+    refetchInterval: (query) => query.state.status === 'error' ? 8000 : false,
   })
 
   return (
@@ -34,13 +36,17 @@ export default function Dashboard() {
       </div>
 
       {isError && (
-        <div className="glass rounded-xl border border-red-400/20 bg-red-400/5 px-5 py-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-red-400 text-sm">Could not load dashboard stats</p>
-            <p className="text-xs text-ink/50 mt-0.5">The server may be waking up. Please wait 30 seconds and
-              <button onClick={() => refetch()} className="text-coral underline ml-1">try again</button>.
+        <div className="glass rounded-xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-400 text-sm">Backend is waking up…</p>
+            <p className="text-xs text-ink/50 mt-0.5">
+              Render free tier sleeps after 15 min of inactivity. Auto-retrying every 8 seconds —
+              <button onClick={() => refetch()} className="text-coral underline ml-1">retry now</button>.
             </p>
+            <div className="mt-2 h-1 w-48 bg-panel rounded-full overflow-hidden">
+              <div className="h-full bg-amber-400/60 rounded-full animate-[ping_2s_ease-in-out_infinite] w-full" />
+            </div>
           </div>
         </div>
       )}

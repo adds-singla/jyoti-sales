@@ -22,8 +22,9 @@ export default function AdminCustomers() {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => (await api.get('/admin/customers', { params: { size: 100 } })).data,
-    retry: 3,
-    retryDelay: 2000,
+    retry: 10,
+    retryDelay: (attempt) => Math.min(3000 * (attempt + 1), 15000),
+    refetchInterval: (query) => query.state.status === 'error' ? 8000 : false,
   })
 
   const customers: CustomerSummary[] = data?.content ?? []
@@ -89,13 +90,13 @@ export default function AdminCustomers() {
 
       {/* Error state */}
       {isError && (
-        <div className="glass rounded-xl border border-red-400/20 bg-red-400/5 px-5 py-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+        <div className="glass rounded-xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-red-400 text-sm">Could not load customers</p>
+            <p className="font-semibold text-amber-400 text-sm">Backend is waking up…</p>
             <p className="text-xs text-ink/50 mt-0.5">
-              The server may be waking up (Render free tier sleeps after 15 min of inactivity). Please wait 30 seconds and
-              <button onClick={() => refetch()} className="text-coral underline ml-1">try again</button>.
+              Render free tier sleeps after 15 min of inactivity. Auto-retrying every 8 seconds —
+              <button onClick={() => refetch()} className="text-coral underline ml-1">retry now</button>.
             </p>
           </div>
         </div>
