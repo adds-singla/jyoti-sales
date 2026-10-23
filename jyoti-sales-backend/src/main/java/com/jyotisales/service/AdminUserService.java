@@ -1,5 +1,6 @@
 package com.jyotisales.service;
 
+import com.jyotisales.dto.CustomerSummary;
 import com.jyotisales.entity.User;
 import com.jyotisales.exception.ApiException;
 import com.jyotisales.repository.UserRepository;
@@ -15,14 +16,15 @@ public class AdminUserService {
 
     private final UserRepository userRepository;
 
-    public Page<User> listCustomers(Pageable pageable) {
-        return userRepository.findAll(pageable);
+    @Transactional(readOnly = true)
+    public Page<CustomerSummary> listCustomers(Pageable pageable) {
+        return userRepository.findAll(pageable).map(CustomerSummary::from);
     }
 
     @Transactional
-    public User setBlocked(Long userId, boolean blocked) {
+    public CustomerSummary setBlocked(Long userId, boolean blocked) {
         User user = userRepository.findById(userId).orElseThrow(() -> ApiException.notFound("User not found"));
         user.setBlocked(blocked);
-        return userRepository.save(user);
+        return CustomerSummary.from(userRepository.save(user));
     }
 }
