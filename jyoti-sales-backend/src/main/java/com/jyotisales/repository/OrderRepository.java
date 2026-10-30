@@ -15,11 +15,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Page<Order> findByStatus(Order.Status status, Pageable pageable);
     long countByStatus(Order.Status status);
 
-    /** All non-cancelled orders between two timestamps */
-    @Query("SELECT o FROM Order o WHERE o.status <> 'CANCELLED' AND o.createdAt >= :from AND o.createdAt < :to")
-    List<Order> findRevenueOrders(@Param("from") Instant from, @Param("to") Instant to);
-
-    /** All orders (any status) between two timestamps */
-    @Query("SELECT o FROM Order o WHERE o.createdAt >= :from AND o.createdAt < :to")
+    /**
+     * Loads all orders in range with items, product snapshots, and user
+     * in a single JOIN FETCH query — avoids LazyInitializationException
+     * and N+1 queries when the service iterates items and user fields.
+     */
+    @Query("""
+        SELECT DISTINCT o FROM Order o
+        LEFT JOIN FETCH o.items i
+        LEFT JOIN FETCH i.product
+        LEFT JOIN FETCH o.user
+        WHERE o.createdAt >= :from AND o.createdAt < :to
+        ORDER BY o.createdAt DESC
+        """)
     List<Order> findAllInRange(@Param("from") Instant from, @Param("to") Instant to);
 }

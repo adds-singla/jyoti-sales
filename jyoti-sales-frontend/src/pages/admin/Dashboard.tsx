@@ -55,7 +55,7 @@ export default function Dashboard() {
   const curMonth = now.getMonth() + 1
   const fyYear   = curMonth >= 4 ? curYear : curYear - 1
 
-  const [period, setPeriod]  = useState<Period>('financial_year')
+  const [period, setPeriod]  = useState<Period>('all_time')
   const [year, setYear]      = useState(fyYear)
   const [month, setMonth]    = useState(curMonth)
 
@@ -76,12 +76,14 @@ export default function Dashboard() {
     month: String(month),
   })
 
-  const { data: analytics, isLoading: analyticsLoading, refetch: refetchAnalytics, isFetching: analyticsFetching } =
+  const { data: analytics, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics, isFetching: analyticsFetching } =
     useQuery({
       queryKey: ['admin-analytics', period, year, month],
       queryFn: async () =>
         (await api.get<DashboardAnalytics>(`/admin/dashboard/analytics?${analyticsParams}`)).data,
-      retry: 3,
+      retry: 5,
+      retryDelay: (a) => Math.min(3000 * (a + 1), 15000),
+      refetchInterval: (q) => q.state.status === 'error' ? 8000 : false,
     })
 
   const handleRefresh = () => { refetchStats(); refetchAnalytics() }
@@ -132,15 +134,18 @@ export default function Dashboard() {
       </div>
 
       {/* ── Error banner ────────────────────────────────────────────────────── */}
-      {statsError && (
+      {(statsError || analyticsError) && (
         <div className="glass rounded-xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold text-amber-400 text-sm">Backend is waking up…</p>
             <p className="text-xs text-ink/50 mt-0.5">
               Render free tier sleeps after 15 min of inactivity. Auto-retrying every 8s —&nbsp;
-              <button onClick={() => refetchStats()} className="text-coral underline">retry now</button>.
+              <button onClick={handleRefresh} className="text-coral underline">retry now</button>.
             </p>
+            <div className="mt-2 h-1 w-48 bg-panel rounded-full overflow-hidden">
+              <div className="h-full bg-amber-400/60 rounded-full animate-pulse w-full" />
+            </div>
           </div>
         </div>
       )}
