@@ -4,7 +4,6 @@ import com.jyotisales.dto.ReviewRequest;
 import com.jyotisales.dto.ReviewResponse;
 import com.jyotisales.entity.*;
 import com.jyotisales.exception.ApiException;
-import com.jyotisales.repository.OrderItemRepository;
 import com.jyotisales.repository.ProductRepository;
 import com.jyotisales.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;

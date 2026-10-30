@@ -167,3 +167,28 @@ export interface DashboardStats {
   lowStockCount: number
   lowStockItems: { productId: number; name: string; stock: number }[]
 }
+
+export interface RevenuePoint {
+  label: string
+  revenue: number
+  orders: number
+}
+
+export interface ProductStat {
+  productId: number
+  productName: string
+  unitsSold: number
+  revenue: number
+  avgSellingPrice: number
+}
+
+export interface DashboardAnalytics {
+  revenueTrend: RevenuePoint[]
+  topProducts: ProductStat[]
+  orderStatusBreakdown: { status: string; count: number }[]
+  paymentMethodBreakdown: { method: string; count: number; amount: number }[]
+  periodRevenue: number
+  periodOrders: number
+  avgOrderValue: number
+  topCustomers: { userId: number; name: string; orderCount: number; totalSpent: number }[]
+}
