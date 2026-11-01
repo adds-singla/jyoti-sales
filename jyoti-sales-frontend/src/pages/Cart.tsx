@@ -32,7 +32,7 @@ export default function Cart() {
                 {/* Price + MRP + discount % */}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <p className="text-sm text-coral font-semibold">{formatINR(item.unitPrice)}</p>
-                  {item.mrp > item.unitPrice && (
+                  {item.mrp && item.mrp > item.unitPrice && (
                     <>
                       <p className="text-xs text-ink/40 line-through">{formatINR(item.mrp)}</p>
                       <span className="text-[10px] bg-green-400/15 text-green-400 font-bold px-1.5 py-0.5 rounded-full">
@@ -61,10 +61,10 @@ export default function Cart() {
           <h2 className="font-semibold">Order Summary</h2>
           <div className="text-sm space-y-2 border-t border-hairline/10 pt-4">
             {(() => {
-              const totalMrp = cart.items.reduce((sum, i) => sum + i.mrp * i.quantity, 0)
-              const totalPrice = cart.total
+              const totalMrp = cart.items.reduce((sum, i) => sum + (Number(i.mrp) || Number(i.unitPrice) || 0) * (Number(i.quantity) || 1), 0)
+              const totalPrice = Number(cart.total) || 0
               const saved = totalMrp - totalPrice
-              const discPct = totalMrp > 0 ? Math.round((saved / totalMrp) * 100) : 0
+              const discPct = totalMrp > 0 && saved > 0 ? Math.round((saved / totalMrp) * 100) : 0
               return (
                 <>
                   <div className="flex justify-between text-ink/50">

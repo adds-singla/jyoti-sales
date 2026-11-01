@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
@@ -17,10 +17,13 @@ export default function ProductDetail() {
   const { addToCart } = useCart()
   const qc = useQueryClient()
   const { accessToken } = useAuthStore()
+  const goTo = useNavigate()
   const [activeImage, setActiveImage] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<number | undefined>(undefined)
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', body: '' })
   const [reviewMsg, setReviewMsg] = useState('')
   const galleryImgRef = useRef<HTMLImageElement>(null)
@@ -31,6 +34,12 @@ export default function ProductDetail() {
     queryKey: ['product', slug],
     queryFn: async () => (await api.get<Product>(`/products/slug/${slug}`)).data,
   })
+
+  useEffect(() => {
+    if (product?.variants && product.variants.length > 0 && selectedVariant === undefined) {
+      setSelectedVariant(product.variants[0].id)
+    }
+  }, [product, selectedVariant])
 
   // Keyboard navigation for gallery — defined after product so it's in scope
   const navigate = useCallback((dir: 1 | -1) => {
@@ -92,12 +101,37 @@ export default function ProductDetail() {
   const variantGroups = Array.from(new Set(product.variants.map((v) => v.variantType)))
 
   async function handleAddToCart() {
-    if (galleryImgRef.current) {
-      triggerFlyToCart(galleryImgRef.current.src, galleryImgRef.current)
+    if (adding) return
+    setErrorMsg('')
+    try {
+      setAdding(true)
+      if (galleryImgRef.current) {
+        triggerFlyToCart(galleryImgRef.current.src, galleryImgRef.current)
+      }
+      await addToCart(product!, qty, selectedVariant)
+      setAdded(true)
+      setTimeout(() => setAdded(false), 1500)
+    } catch (err: any) {
+      console.error('Failed to add to cart:', err)
+      setErrorMsg(err?.response?.data?.message || err?.message || 'Could not add to cart')
+    } finally {
+      setAdding(false)
     }
-    await addToCart(product!, qty, selectedVariant)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
+  }
+
+  async function handleBuyNow() {
+    if (adding) return
+    setErrorMsg('')
+    try {
+      setAdding(true)
+      await addToCart(product!, qty, selectedVariant)
+      goTo('/cart')
+    } catch (err: any) {
+      console.error('Failed to add to cart:', err)
+      setErrorMsg(err?.response?.data?.message || err?.message || 'Could not add to cart')
+    } finally {
+      setAdding(false)
+    }
   }
 
   async function submitReview(e: React.FormEvent) {
@@ -312,14 +346,18 @@ export default function ProductDetail() {
             </div>
             <button
               onClick={handleAddToCart}
-              disabled={product.stock === 0}
+              disabled={product.stock === 0 || adding}
               className="flex-1 rounded-full bg-coral text-onaccent font-semibold py-3 disabled:opacity-40 hover:shadow-glow transition-shadow"
             >
-              {added ? 'Added ✓' : product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+              {added ? 'Added ✓' : product.stock === 0 ? 'Out of Stock' : adding ? 'Adding...' : 'Add to Cart'}
             </button>
-            <Link to="/cart" onClick={handleAddToCart} className="rounded-full border border-plum text-plum font-semibold py-3 px-6 hover:bg-plum/10 transition-colors">
+            <button
+              onClick={handleBuyNow}
+              disabled={product.stock === 0 || adding}
+              className="rounded-full border border-plum text-plum font-semibold py-3 px-6 hover:bg-plum/10 transition-colors disabled:opacity-40"
+            >
               Buy Now
-            </Link>
+            </button>
             {accessToken && (
               <button
                 onClick={toggleWishlist}
@@ -330,6 +368,7 @@ export default function ProductDetail() {
               </button>
             )}
           </div>
+          {errorMsg && <p className="text-sm text-red-400 mt-2">{errorMsg}</p>}
 
           <div className="grid grid-cols-3 gap-3 mt-6 text-xs text-ink/60">
             <div className="flex flex-col items-center gap-1 text-center"><ShieldCheck className="h-5 w-5 text-coral" />Genuine Warranty</div>

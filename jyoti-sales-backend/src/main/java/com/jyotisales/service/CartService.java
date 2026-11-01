@@ -118,12 +118,13 @@ public class CartService {
     private CartResponse buildResponse(Cart cart) {
         List<CartResponse.Item> items = cart.getItems().stream().map(ci -> {
             BigDecimal unitPrice = ci.getProduct().getPrice();
-            BigDecimal mrp       = ci.getProduct().getMrp();
+            BigDecimal mrp       = ci.getProduct().getMrp() != null ? ci.getProduct().getMrp() : unitPrice;
             String variantLabel = null;
             int stock = ci.getProduct().getStock();
             if (ci.getVariant() != null) {
-                unitPrice = unitPrice.add(ci.getVariant().getPriceDelta());
-                mrp       = mrp.add(ci.getVariant().getPriceDelta());
+                BigDecimal delta = ci.getVariant().getPriceDelta() != null ? ci.getVariant().getPriceDelta() : BigDecimal.ZERO;
+                unitPrice = unitPrice.add(delta);
+                mrp       = mrp.add(delta);
                 variantLabel = ci.getVariant().getVariantType() + ": " + ci.getVariant().getVariantValue();
                 stock = ci.getVariant().getStock();
             }
