@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -82,9 +83,27 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex
+                // Return 401 (not 403) when the request is unauthenticated, so the frontend
+                // refresh-token interceptor can detect expired access tokens and retry.
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint())
+            )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Custom entry point: sends HTTP 401 with a JSON body whenever an unauthenticated
+     * request hits a protected endpoint. Without this, Spring's default sends 403.
+     */
+    @Bean
+    public AuthenticationEntryPoint jwtAuthenticationEntryPoint() {
+        return (request, response, authException) -> {
+            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + authException.getMessage() + "\"}");
+        };
     }
 }
