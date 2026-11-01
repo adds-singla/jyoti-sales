@@ -50,8 +50,16 @@ public class FirebaseConfig {
         }
 
         GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream);
+
+        // storageBucket is needed for FirebaseStorageService (product image uploads)
+        String bucket = System.getenv("FIREBASE_STORAGE_BUCKET");
+        if (bucket == null || bucket.isBlank()) {
+            bucket = "jyoti-sales.firebasestorage.app"; // default
+        }
+
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(credentials)
+                .setStorageBucket(bucket)
                 .build();
         return FirebaseApp.initializeApp(options);
     }
