@@ -9,6 +9,7 @@ export interface GuestCartItem {
   name: string
   imageUrl?: string
   unitPrice: number
+  mrp: number
   quantity: number
 }
 

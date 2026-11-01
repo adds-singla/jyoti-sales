@@ -58,6 +58,7 @@ export interface CartItem {
   variantId?: number
   variantLabel?: string
   unitPrice: number
+  mrp: number
   quantity: number
   lineTotal: number
   availableStock: number

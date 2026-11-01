@@ -29,8 +29,17 @@ export default function Cart() {
               <div className="flex-1">
                 <p className="font-medium text-sm">{item.productName}</p>
                 {item.variantLabel && <p className="text-xs text-ink/40">{item.variantLabel}</p>}
-                <div className="flex items-center gap-2 mt-1">
+                {/* Price + MRP + discount % */}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <p className="text-sm text-coral font-semibold">{formatINR(item.unitPrice)}</p>
+                  {item.mrp > item.unitPrice && (
+                    <>
+                      <p className="text-xs text-ink/40 line-through">{formatINR(item.mrp)}</p>
+                      <span className="text-[10px] bg-green-400/15 text-green-400 font-bold px-1.5 py-0.5 rounded-full">
+                        {Math.round(((item.mrp - item.unitPrice) / item.mrp) * 100)}% OFF
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center border border-hairline/20 rounded-full text-sm">
@@ -51,14 +60,40 @@ export default function Cart() {
         <div className="glass rounded-card p-5 border border-hairline/10 h-fit space-y-4">
           <h2 className="font-semibold">Order Summary</h2>
           <div className="text-sm space-y-2 border-t border-hairline/10 pt-4">
-            <div className="flex justify-between">
-              <span className="text-ink/50">MRP</span>
-              <span>{formatINR(cart.subtotal + cart.discount)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-base border-t border-hairline/10 pt-2">
-              <span>Total</span>
-              <span>{formatINR(cart.total)}</span>
-            </div>
+            {(() => {
+              const totalMrp = cart.items.reduce((sum, i) => sum + i.mrp * i.quantity, 0)
+              const totalPrice = cart.total
+              const saved = totalMrp - totalPrice
+              const discPct = totalMrp > 0 ? Math.round((saved / totalMrp) * 100) : 0
+              return (
+                <>
+                  <div className="flex justify-between text-ink/50">
+                    <span>MRP</span>
+                    <span className="line-through">{formatINR(totalMrp)}</span>
+                  </div>
+                  {saved > 0 && (
+                    <div className="flex justify-between text-green-400 font-medium">
+                      <span className="flex items-center gap-1.5">
+                        Discount
+                        <span className="text-[10px] bg-green-400/15 text-green-400 font-bold px-1.5 py-0.5 rounded-full">
+                          {discPct}% OFF
+                        </span>
+                      </span>
+                      <span>− {formatINR(saved)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-base border-t border-hairline/10 pt-2">
+                    <span>Total</span>
+                    <span>{formatINR(totalPrice)}</span>
+                  </div>
+                  {saved > 0 && (
+                    <p className="text-center text-xs text-green-400 bg-green-400/10 rounded-lg py-1.5 font-medium">
+                      🎉 You save {formatINR(saved)} on this order!
+                    </p>
+                  )}
+                </>
+              )
+            })()}
           </div>
           {accessToken ? (
             <Link to="/checkout" className="block text-center rounded-full bg-coral text-onaccent font-semibold py-3 hover:shadow-glow transition-shadow">

@@ -12,6 +12,6 @@ public record CartResponse(
         String appliedCouponCode
 ) {
     public record Item(Long cartItemId, Long productId, String productName, String imageUrl,
-                        Long variantId, String variantLabel, BigDecimal unitPrice, Integer quantity,
-                        BigDecimal lineTotal, Integer availableStock) {}
+                        Long variantId, String variantLabel, BigDecimal unitPrice, BigDecimal mrp,
+                        Integer quantity, BigDecimal lineTotal, Integer availableStock) {}
 }

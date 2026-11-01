@@ -25,6 +25,7 @@ export function useCart() {
       imageUrl: i.imageUrl,
       variantId: i.variantId,
       unitPrice: i.unitPrice,
+      mrp: i.mrp ?? i.unitPrice,
       quantity: i.quantity,
       lineTotal: i.unitPrice * i.quantity,
       availableStock: 999,
@@ -49,6 +50,7 @@ export function useCart() {
         name: product.name + (variant ? ` (${variant.variantValue})` : ''),
         imageUrl: product.imageUrls[0],
         unitPrice: product.price + (variant?.priceDelta || 0),
+        mrp: product.mrp + (variant?.priceDelta || 0),
         quantity,
       })
     }

@@ -118,10 +118,12 @@ public class CartService {
     private CartResponse buildResponse(Cart cart) {
         List<CartResponse.Item> items = cart.getItems().stream().map(ci -> {
             BigDecimal unitPrice = ci.getProduct().getPrice();
+            BigDecimal mrp       = ci.getProduct().getMrp();
             String variantLabel = null;
             int stock = ci.getProduct().getStock();
             if (ci.getVariant() != null) {
                 unitPrice = unitPrice.add(ci.getVariant().getPriceDelta());
+                mrp       = mrp.add(ci.getVariant().getPriceDelta());
                 variantLabel = ci.getVariant().getVariantType() + ": " + ci.getVariant().getVariantValue();
                 stock = ci.getVariant().getStock();
             }
@@ -129,7 +131,7 @@ public class CartService {
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
             return new CartResponse.Item(ci.getId(), ci.getProduct().getId(), ci.getProduct().getName(), imageUrl,
                     ci.getVariant() != null ? ci.getVariant().getId() : null, variantLabel,
-                    unitPrice, ci.getQuantity(), lineTotal, stock);
+                    unitPrice, mrp, ci.getQuantity(), lineTotal, stock);
         }).toList();
 
         BigDecimal subtotal = items.stream().map(CartResponse.Item::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
