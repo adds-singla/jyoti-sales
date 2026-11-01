@@ -1,24 +1,12 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
 import { useCart } from '../lib/useCart'
 import { formatINR } from '../lib/format'
-import { Trash2, Tag } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 export default function Cart() {
-  const { cart, updateQuantity, removeItem, applyCoupon } = useCart()
+  const { cart, updateQuantity, removeItem } = useCart()
   const { accessToken } = useAuthStore()
-  const [coupon, setCoupon] = useState('')
-  const [couponMsg, setCouponMsg] = useState('')
-
-  async function handleApplyCoupon() {
-    try {
-      await applyCoupon(coupon)
-      setCouponMsg('Coupon applied!')
-    } catch (e: any) {
-      setCouponMsg(e?.response?.data?.message || e.message)
-    }
-  }
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -60,17 +48,6 @@ export default function Cart() {
 
         <div className="glass rounded-card p-5 border border-hairline/10 h-fit space-y-4">
           <h2 className="font-semibold">Order Summary</h2>
-          {accessToken && (
-            <div>
-              <label className="text-xs text-ink/50 flex items-center gap-1 mb-1"><Tag className="h-3 w-3" /> Coupon code</label>
-              <div className="flex gap-2">
-                <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="e.g. WELCOME500"
-                  className="flex-1 bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm" />
-                <button onClick={handleApplyCoupon} className="rounded-lg bg-panel border border-hairline/15 px-3 text-sm">Apply</button>
-              </div>
-              {couponMsg && <p className="text-xs text-plum mt-1">{couponMsg}</p>}
-            </div>
-          )}
           <div className="text-sm space-y-2 border-t border-hairline/10 pt-4">
             <div className="flex justify-between"><span className="text-ink/50">Subtotal</span><span>{formatINR(cart.subtotal)}</span></div>
             {cart.discount > 0 && (
