@@ -29,7 +29,9 @@ export default function Cart() {
               <div className="flex-1">
                 <p className="font-medium text-sm">{item.productName}</p>
                 {item.variantLabel && <p className="text-xs text-ink/40">{item.variantLabel}</p>}
-                <p className="text-sm text-coral font-semibold mt-1">{formatINR(item.unitPrice)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-coral font-semibold">{formatINR(item.unitPrice)}</p>
+                </div>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center border border-hairline/20 rounded-full text-sm">
                     <button onClick={() => updateQuantity(item.cartItemId, item.quantity - 1, item.productId, item.variantId)} className="px-2 py-1">-</button>
@@ -49,13 +51,37 @@ export default function Cart() {
         <div className="glass rounded-card p-5 border border-hairline/10 h-fit space-y-4">
           <h2 className="font-semibold">Order Summary</h2>
           <div className="text-sm space-y-2 border-t border-hairline/10 pt-4">
-            <div className="flex justify-between"><span className="text-ink/50">Subtotal</span><span>{formatINR(cart.subtotal)}</span></div>
-            {cart.discount > 0 && (
-              <div className="flex justify-between text-plum"><span>Discount</span><span>-{formatINR(cart.discount)}</span></div>
-            )}
-            <div className="flex justify-between font-semibold text-base border-t border-hairline/10 pt-2">
-              <span>Total</span><span>{formatINR(cart.total)}</span>
+            {/* MRP (full price before discount) */}
+            <div className="flex justify-between text-ink/50">
+              <span>MRP</span>
+              <span className="line-through">{formatINR(cart.subtotal + cart.discount)}</span>
             </div>
+
+            {/* Discount amount + percentage badge */}
+            {cart.discount > 0 && (
+              <div className="flex justify-between text-green-400 font-medium">
+                <span className="flex items-center gap-1.5">
+                  Discount
+                  <span className="text-[10px] bg-green-400/15 text-green-400 font-bold px-1.5 py-0.5 rounded-full">
+                    {Math.round((cart.discount / (cart.subtotal + cart.discount)) * 100)}% OFF
+                  </span>
+                </span>
+                <span>− {formatINR(cart.discount)}</span>
+              </div>
+            )}
+
+            {/* Total to pay */}
+            <div className="flex justify-between font-bold text-base border-t border-hairline/10 pt-2">
+              <span>Total</span>
+              <span>{formatINR(cart.total)}</span>
+            </div>
+
+            {/* Savings callout */}
+            {cart.discount > 0 && (
+              <p className="text-center text-xs text-green-400 bg-green-400/10 rounded-lg py-1.5 font-medium">
+                🎉 You save {formatINR(cart.discount)} on this order!
+              </p>
+            )}
           </div>
           {accessToken ? (
             <Link to="/checkout" className="block text-center rounded-full bg-coral text-onaccent font-semibold py-3 hover:shadow-glow transition-shadow">
