@@ -51,37 +51,14 @@ export default function Cart() {
         <div className="glass rounded-card p-5 border border-hairline/10 h-fit space-y-4">
           <h2 className="font-semibold">Order Summary</h2>
           <div className="text-sm space-y-2 border-t border-hairline/10 pt-4">
-            {/* MRP (full price before discount) */}
-            <div className="flex justify-between text-ink/50">
-              <span>MRP</span>
-              <span className="line-through">{formatINR(cart.subtotal + cart.discount)}</span>
+            <div className="flex justify-between">
+              <span className="text-ink/50">MRP</span>
+              <span>{formatINR(cart.subtotal + cart.discount)}</span>
             </div>
-
-            {/* Discount amount + percentage badge */}
-            {cart.discount > 0 && (
-              <div className="flex justify-between text-green-400 font-medium">
-                <span className="flex items-center gap-1.5">
-                  Discount
-                  <span className="text-[10px] bg-green-400/15 text-green-400 font-bold px-1.5 py-0.5 rounded-full">
-                    {Math.round((cart.discount / (cart.subtotal + cart.discount)) * 100)}% OFF
-                  </span>
-                </span>
-                <span>− {formatINR(cart.discount)}</span>
-              </div>
-            )}
-
-            {/* Total to pay */}
             <div className="flex justify-between font-bold text-base border-t border-hairline/10 pt-2">
               <span>Total</span>
               <span>{formatINR(cart.total)}</span>
             </div>
-
-            {/* Savings callout */}
-            {cart.discount > 0 && (
-              <p className="text-center text-xs text-green-400 bg-green-400/10 rounded-lg py-1.5 font-medium">
-                🎉 You save {formatINR(cart.discount)} on this order!
-              </p>
-            )}
           </div>
           {accessToken ? (
             <Link to="/checkout" className="block text-center rounded-full bg-coral text-onaccent font-semibold py-3 hover:shadow-glow transition-shadow">
