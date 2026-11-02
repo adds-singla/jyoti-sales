@@ -6,13 +6,13 @@ import { api, apiErrorMessage } from '../lib/api'
 import { Address, User } from '../types'
 import { formatINR } from '../lib/format'
 import { useCart } from '../lib/useCart'
-import { useGuestCartStore } from '../store/cartStore'
 import { useAuthStore } from '../store/authStore'
-import { Banknote, CheckCircle2, XCircle, Plus, MapPin, ShieldCheck, Tag, ChevronDown, X as XIcon } from 'lucide-react'
+import { Banknote, CheckCircle2, XCircle, Plus, MapPin, ShieldCheck, Tag, ChevronDown, X as XIcon, CreditCard, Smartphone, Building2 } from 'lucide-react'
 import Confetti from '../components/Confetti'
 import clsx from 'clsx'
 
 type Step = 'address' | 'payment' | 'processing' | 'result'
+type OnlineSubMethod = 'CARD' | 'UPI' | 'NET_BANKING'
 
 // Razorpay global type
 declare global {
@@ -59,6 +59,7 @@ export default function Checkout() {
   const [step, setStep] = useState<Step>('address')
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
   const [method, setMethod] = useState<'ONLINE' | 'COD'>('ONLINE')
+  const [onlineSubMethod, setOnlineSubMethod] = useState<'CARD' | 'UPI' | 'NET_BANKING'>('CARD')
   const [orderId, setOrderId] = useState<number | null>(null)
   const [orderTotal, setOrderTotal] = useState(0)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -67,8 +68,17 @@ export default function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState<null | { code: string; discount: number; label: string }>(null)
   const [couponError, setCouponError] = useState('')
   const [showCouponList, setShowCouponList] = useState(false)
+
   // Snapshot of cart items before checkout — restored on payment failure
   const cartSnapshotRef = useRef<typeof cart | null>(null)
+
+  // Test-mode (dummy provider) payment form state
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardExpiry, setCardExpiry] = useState('')
+  const [cardCvv, setCardCvv] = useState('')
+  const [upiId, setUpiId] = useState('')
+  const [bankCode, setBankCode] = useState('')
+
 
   const [newAddress, setNewAddress] = useState({
     label: 'Home', recipientName: '', phone: '', line1: '',
@@ -182,6 +192,11 @@ export default function Checkout() {
     }
   }
 
+  // ── Cancel pending order (on payment failure / dismiss) ─────────────────
+  async function cancelPendingOrder(id: number) {
+    try { await api.patch(`/orders/${id}/cancel`) } catch (_) { /* best-effort */ }
+  }
+
   // ── COD placement ────────────────────────────────────────────────────────
   async function handleCOD() {
     if (!orderId) return
@@ -191,35 +206,62 @@ export default function Checkout() {
       qc.invalidateQueries({ queryKey: ['cart'] })
       setResult({ success: true, message: 'Order placed! Pay cash on delivery.' })
     } catch (e) {
+      // COD initiation failed — cancel the pending order so stock is restored
+      await cancelPendingOrder(orderId)
       setResult({ success: false, message: apiErrorMessage(e) })
     }
     setStep('result')
   }
 
-  // ── Razorpay online payment ──────────────────────────────────────────────
-  async function handleRazorpay() {
+  // ── Online payment ───────────────────────────────────────────────────────
+  async function handleOnlinePayment() {
     if (!orderId) return
     setStep('processing')
 
-    const loaded = await loadRazorpayScript()
-    if (!loaded || !window.Razorpay) {
-      setResult({ success: false, message: 'Failed to load Razorpay. Check your internet connection.' })
-      setStep('result')
-      return
-    }
-
     try {
-      // Step 1: Create Razorpay order on backend
-      const { data } = await api.post('/payments/initiate', { orderId, method: 'CARD' })
+      // Step 1: Create payment order on backend
+      // Send sub-method details so dummy provider can resolve outcome
+      const payload: Record<string, any> = { orderId, method: onlineSubMethod }
+      if (onlineSubMethod === 'CARD') {
+        payload.cardNumber = cardNumber.replace(/\s/g, '')
+        payload.cardExpiry = cardExpiry
+        payload.cardCvv = cardCvv
+      } else if (onlineSubMethod === 'UPI') {
+        payload.upiId = upiId
+      } else if (onlineSubMethod === 'NET_BANKING') {
+        payload.bankCode = bankCode
+      }
 
-      if (!data.razorpayOrderId || !data.razorpayKeyId) {
-        setResult({ success: false, message: 'Could not create payment order. Please try again.' })
+      const { data } = await api.post('/payments/initiate', payload)
+
+      // ── Test / Dummy mode: backend returns testMode=true, no Razorpay IDs ──
+      if (data.testMode || !data.razorpayOrderId || !data.razorpayKeyId) {
+        // Dummy provider resolves immediately — check status from response
+        if (data.status === 'SUCCESS') {
+          qc.invalidateQueries({ queryKey: ['cart'] })
+          setResult({ success: true, message: '✅ [Test Mode] Payment approved! Your order is confirmed.' })
+        } else if (data.status === 'FAILED') {
+          await cancelPendingOrder(orderId)
+          setResult({ success: false, message: data.failureReason || '[Test Mode] Payment declined by test gateway.' })
+        } else {
+          // INITIATED / PENDING (shouldn't happen for non-COD dummy, but handle gracefully)
+          setResult({ success: false, message: 'Payment could not be completed. Please try again.' })
+          await cancelPendingOrder(orderId)
+        }
         setStep('result')
         return
       }
 
-      // Step 2: Open Razorpay modal
-      setStep('processing') // keep spinner behind the modal
+      // ── Real Razorpay mode: open the modal ──────────────────────────────
+      const loaded = await loadRazorpayScript()
+      if (!loaded || !window.Razorpay) {
+        await cancelPendingOrder(orderId)
+        setResult({ success: false, message: 'Failed to load Razorpay. Check your internet connection.' })
+        setStep('result')
+        return
+      }
+
+      setStep('processing') // keep spinner visible behind the modal
       const rzp = new window.Razorpay({
         key: data.razorpayKeyId,
         amount: Math.round(orderTotal * 100), // paise
@@ -234,25 +276,28 @@ export default function Checkout() {
         },
         theme: { color: '#F2A65A' },
         handler: async (response: RazorpayResponse) => {
-          // Step 3: Verify signature on backend
+          // Step 2: Verify HMAC signature on backend
           try {
             await api.post('/payments/razorpay/verify', {
               paymentId: data.paymentId,
-              razorpayOrderId:  response.razorpay_order_id,
+              razorpayOrderId:   response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
             })
             qc.invalidateQueries({ queryKey: ['cart'] })
             setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
           } catch (e) {
-            setResult({ success: false, message: 'Payment captured but verification failed. Please contact support.' })
+            // Signature invalid — treat as failed & cancel order
+            await cancelPendingOrder(orderId!)
+            setResult({ success: false, message: 'Payment verification failed. Please contact support if money was deducted.' })
           }
           setStep('result')
         },
         modal: {
-          ondismiss: () => {
-            // User closed the modal without paying
-            setResult({ success: false, message: 'Payment cancelled. Your order is saved — try again anytime.' })
+          ondismiss: async () => {
+            // User closed the modal without completing payment — cancel the order
+            await cancelPendingOrder(orderId!)
+            setResult({ success: false, message: 'Payment cancelled. Your order has been cancelled and no money was charged.' })
             setStep('result')
           },
         },
@@ -260,6 +305,8 @@ export default function Checkout() {
 
       rzp.open()
     } catch (e) {
+      // initiate() itself failed — cancel pending order
+      await cancelPendingOrder(orderId)
       setResult({ success: false, message: apiErrorMessage(e) })
       setStep('result')
     }
@@ -561,12 +608,93 @@ export default function Checkout() {
               </button>
             </div>
 
-            {/* Razorpay trust badges */}
+            {/* Online payment sub-method selector + form */}
             {method === 'ONLINE' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex items-center gap-3 text-xs text-ink/40 bg-panel border border-hairline/10 rounded-xl px-4 py-3">
-                <ShieldCheck className="h-4 w-4 text-green-400 shrink-0" />
-                Secured by Razorpay · 256-bit SSL · Supports UPI, Cards, Net Banking & Wallets
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+
+                {/* Sub-method tabs */}
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { key: 'CARD' as const,        label: 'Card',        sub: 'Credit / Debit'  },
+                    { key: 'UPI' as const,          label: 'UPI',         sub: 'PhonePe · GPay'  },
+                    { key: 'NET_BANKING' as const,  label: 'Net Banking', sub: 'All major banks' },
+                  ]).map(({ key, label, sub }) => (
+                    <button key={key} onClick={() => setOnlineSubMethod(key)}
+                      className={clsx(
+                        'flex flex-col items-center gap-1 rounded-xl py-3 border-2 text-center transition-all',
+                        onlineSubMethod === key
+                          ? 'border-coral bg-coral/10'
+                          : 'border-hairline/15 hover:border-hairline/30',
+                      )}>
+                      <span className="font-semibold text-xs">{label}</span>
+                      <span className="text-[10px] text-ink/40">{sub}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* CARD fields */}
+                {onlineSubMethod === 'CARD' && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
+                    <p className="text-xs text-ink/40 font-medium uppercase tracking-wide">Card Details</p>
+                    <input
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, '').slice(0, 19))}
+                      placeholder="Card number"
+                      className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm font-mono tracking-widest focus:outline-none focus:border-coral/50"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)}
+                        placeholder="MM/YY"
+                        className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-coral/50" />
+                      <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="CVV" type="password"
+                        className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-coral/50" />
+                    </div>
+                    <p className="text-[11px] text-ink/30">
+                      Test mode — use <span className="font-mono text-coral/70">4111 1111 1111 1111</span> · any future date · any CVV
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* UPI field */}
+                {onlineSubMethod === 'UPI' && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
+                    <p className="text-xs text-ink/40 font-medium uppercase tracking-wide">UPI ID</p>
+                    <input value={upiId} onChange={(e) => setUpiId(e.target.value)}
+                      placeholder="yourname@upi"
+                      className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-coral/50" />
+                    <p className="text-[11px] text-ink/30">
+                      Test mode — any ID with @ succeeds (e.g. <span className="font-mono text-coral/70">test@upi</span>)
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Net Banking */}
+                {onlineSubMethod === 'NET_BANKING' && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
+                    <p className="text-xs text-ink/40 font-medium uppercase tracking-wide">Select Bank</p>
+                    <select value={bankCode} onChange={(e) => setBankCode(e.target.value)}
+                      className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-coral/50">
+                      <option value="">-- Select your bank --</option>
+                      <option value="HDFC">HDFC Bank</option>
+                      <option value="ICICI">ICICI Bank</option>
+                      <option value="SBI">State Bank of India</option>
+                      <option value="AXIS">Axis Bank</option>
+                      <option value="KOTAK">Kotak Mahindra Bank</option>
+                      <option value="PNB">Punjab National Bank</option>
+                      <option value="BOB">Bank of Baroda</option>
+                      <option value="YES">Yes Bank</option>
+                    </select>
+                  </motion.div>
+                )}
+
+                <div className="flex items-center gap-3 text-xs text-ink/40 bg-panel border border-hairline/10 rounded-xl px-4 py-3">
+                  <ShieldCheck className="h-4 w-4 text-green-400 shrink-0" />
+                  Secured · 256-bit SSL · Supports UPI, Cards, Net Banking & Wallets
+                </div>
               </motion.div>
             )}
 
@@ -579,7 +707,7 @@ export default function Checkout() {
 
             {/* CTA */}
             <button
-              onClick={method === 'COD' ? handleCOD : handleRazorpay}
+              onClick={method === 'COD' ? handleCOD : handleOnlinePayment}
               className="w-full rounded-full bg-coral text-white font-semibold py-3.5 hover:shadow-glow transition-shadow text-base"
             >
               {method === 'COD' ? 'Place Order (COD)' : `Pay ${formatINR(orderTotal)} Securely`}
@@ -625,7 +753,7 @@ export default function Checkout() {
               </button>
             ) : (
               <>
-                <button onClick={() => setStep('payment')}
+                <button onClick={() => { setOrderId(null); setResult(null); setStep('address') }}
                   className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow">
                   Try Again
                 </button>
