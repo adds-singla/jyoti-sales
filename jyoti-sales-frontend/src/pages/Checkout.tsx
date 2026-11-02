@@ -54,7 +54,7 @@ function loadRazorpayScript(): Promise<boolean> {
 export default function Checkout() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { cart } = useCart()
+  const { cart, isLoading: cartLoading } = useCart()
   const { accessToken, fullName } = useAuthStore()
   const [step, setStep] = useState<Step>('address')
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
@@ -318,7 +318,11 @@ export default function Checkout() {
     }
   }
 
-  if (!cart || cart.items.length === 0) {
+  // Only block if we haven't started checkout yet (address step, no order placed).
+  // Once an order is created the cart is cleared server-side; we must NOT redirect
+  // to "empty cart" mid-flow — payment/processing/result screens must still render,
+  // and after a failed payment the cart is restored before the user clicks Try Again.
+  if (step === 'address' && !cartLoading && (!cart || cart.items.length === 0)) {
     return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Your cart is empty.</div>
   }
 
@@ -508,7 +512,7 @@ export default function Checkout() {
                       <p className="text-center text-ink/40 text-sm py-4">No coupons available right now</p>
                     ) : (
                       activeCoupons.map((c: any) => {
-                        const eligible = cart.total >= (c.minOrderValue ?? 0)
+                        const eligible = (cart?.total ?? 0) >= (c.minOrderValue ?? 0)
                         const label = c.discountType === 'FLAT' ? `₹${c.discountValue} off` : `${c.discountValue}% off`
                         return (
                           <button
@@ -550,7 +554,7 @@ export default function Checkout() {
           {appliedCoupon && (
             <div className="glass rounded-xl border border-hairline/10 px-4 py-3 text-sm space-y-1.5">
               <div className="flex justify-between text-ink/60">
-                <span>Subtotal</span><span>{formatINR(cart.total)}</span>
+                <span>Subtotal</span><span>{formatINR(cart?.total ?? 0)}</span>
               </div>
               <div className="flex justify-between text-emerald-400">
                 <span>Coupon ({appliedCoupon.code})</span><span>−{formatINR(appliedCoupon.discount)}</span>
