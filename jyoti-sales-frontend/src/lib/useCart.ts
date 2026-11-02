@@ -104,5 +104,5 @@ export function useCart() {
     await qc.invalidateQueries({ queryKey: ['cart'] })
   }
 
-  return { cart, count, isLoading: accessToken ? serverCart.isLoading : false, addToCart, updateQuantity, removeItem, applyCoupon, syncGuestCartToServer, apiErrorMessage }
+  return { cart, count, isLoading: accessToken ? serverCart.isLoading : false, isFetching: accessToken ? serverCart.isFetching : false, addToCart, updateQuantity, removeItem, applyCoupon, syncGuestCartToServer, apiErrorMessage }
 }

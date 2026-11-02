@@ -54,7 +54,7 @@ function loadRazorpayScript(): Promise<boolean> {
 export default function Checkout() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { cart, isLoading: cartLoading } = useCart()
+  const { cart, isLoading: cartLoading, isFetching: cartFetching } = useCart()
   const { accessToken, fullName } = useAuthStore()
   const [step, setStep] = useState<Step>('address')
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
@@ -334,11 +334,17 @@ export default function Checkout() {
     }
   }
 
-  // Only block if we haven't started checkout yet (address step, no order placed).
-  // Once an order is created the cart is cleared server-side; we must NOT redirect
-  // to "empty cart" mid-flow — payment/processing/result screens must still render,
-  // and after a failed payment the cart is restored before the user clicks Try Again.
-  if (step === 'address' && !cartLoading && (!cart || cart.items.length === 0)) {
+  // While cart is loading or refetching (e.g. after a failed payment restores items),
+  // show a spinner so we never flash "Your cart is empty" during background refetches.
+  if (step === 'address' && (cartLoading || cartFetching)) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">
+        <div className="h-8 w-8 border-4 border-coral border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        Loading cart…
+      </div>
+    )
+  }
+  if (step === 'address' && (!cart || cart.items.length === 0)) {
     return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Your cart is empty.</div>
   }
 
