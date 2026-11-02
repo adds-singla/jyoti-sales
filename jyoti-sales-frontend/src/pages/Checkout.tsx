@@ -63,6 +63,7 @@ export default function Checkout() {
   const [orderId, setOrderId] = useState<number | null>(null)
   const [orderTotal, setOrderTotal] = useState(0)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [cartRestoring, setCartRestoring] = useState(false)
   const [error, setError] = useState('')
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState<null | { code: string; discount: number; label: string }>(null)
@@ -194,13 +195,13 @@ export default function Checkout() {
   }
 
   // ── Cancel pending order (on payment failure / dismiss) ─────────────────
-  // Backend will restore cart items automatically; we then refetch so the cart
-  // badge and count update without requiring a page reload.
+  // Backend will restore cart items automatically; we then FORCE-refetch so the
+  // cart data is fresh before we show the address step again.
   async function cancelPendingOrder(id: number) {
     // Cancel the order if it's still PENDING (backend may have already cancelled it via markFailed)
     try { await api.patch(`/orders/${id}/cancel`) } catch (_) { /* order may already be cancelled */ }
-    // Always refetch cart — backend restores items on cancel regardless of who triggered it
-    await qc.invalidateQueries({ queryKey: ['cart'] })
+    // Force an immediate refetch (not just invalidate) so cart data is guaranteed fresh
+    await qc.refetchQueries({ queryKey: ['cart'] })
   }
 
   // ── COD placement ────────────────────────────────────────────────────────
@@ -209,7 +210,7 @@ export default function Checkout() {
     setStep('processing')
     try {
       await api.post('/payments/initiate', { orderId, method: 'COD' })
-      qc.invalidateQueries({ queryKey: ['cart'] })
+      await qc.refetchQueries({ queryKey: ['cart'] })
       setResult({ success: true, message: 'Order placed! Pay cash on delivery.' })
     } catch (e) {
       // COD initiation failed — cancel the pending order so stock is restored
@@ -260,7 +261,7 @@ export default function Checkout() {
       if (data.testMode || !data.razorpayOrderId || !data.razorpayKeyId) {
         // Dummy provider resolves immediately — check status from response
         if (data.status === 'SUCCESS') {
-          qc.invalidateQueries({ queryKey: ['cart'] })
+          await qc.refetchQueries({ queryKey: ['cart'] })
           setResult({ success: true, message: '✅ [Test Mode] Payment approved! Your order is confirmed.' })
         } else if (data.status === 'FAILED') {
           await cancelPendingOrder(orderId)
@@ -306,7 +307,7 @@ export default function Checkout() {
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
             })
-            qc.invalidateQueries({ queryKey: ['cart'] })
+            qc.refetchQueries({ queryKey: ['cart'] })
             setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
           } catch (e) {
             // Signature invalid — treat as failed & cancel order
@@ -334,9 +335,9 @@ export default function Checkout() {
     }
   }
 
-  // While cart is loading or refetching (e.g. after a failed payment restores items),
-  // show a spinner so we never flash "Your cart is empty" during background refetches.
-  if (step === 'address' && (cartLoading || cartFetching)) {
+  // While cart is loading or refetching, show a spinner to avoid the "empty cart"
+  // flash. cartRestoring covers the Try Again path where we explicitly wait for fresh data.
+  if (step === 'address' && (cartLoading || cartFetching || cartRestoring)) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">
         <div className="h-8 w-8 border-4 border-coral border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -788,9 +789,21 @@ export default function Checkout() {
               </button>
             ) : (
               <>
-                <button onClick={() => { setOrderId(null); setResult(null); setStep('address') }}
-                  className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow">
-                  Try Again
+                <button
+                  disabled={cartRestoring}
+                  onClick={async () => {
+                    // Force a fresh cart fetch before returning to address step so
+                    // the restored items are guaranteed to be in the cache.
+                    setCartRestoring(true)
+                    await qc.refetchQueries({ queryKey: ['cart'] })
+                    setCartRestoring(false)
+                    setOrderId(null)
+                    setResult(null)
+                    setStep('address')
+                  }}
+                  className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow disabled:opacity-60"
+                >
+                  {cartRestoring ? 'Restoring cart…' : 'Try Again'}
                 </button>
                 <button onClick={() => navigate('/')}
                   className="rounded-full border border-hairline/20 px-6 py-3 text-sm text-ink/60">
