@@ -163,6 +163,8 @@ public class OrderService {
                 }
                 order.setStatus(Order.Status.CANCELLED);
                 orderRepository.save(order);
+                // Re-add items to the user's cart so they don't lose their basket
+                restoreCartFromOrder(order);
             }
         });
     }
@@ -205,6 +207,8 @@ public class OrderService {
         order.setStatus(Order.Status.CANCELLED);
         Order saved = orderRepository.save(order);
         emailService.sendStatusUpdate(saved);
+        // Re-add items to the user's cart so they don't lose their basket
+        restoreCartFromOrder(order);
         return toResponse(saved);
     }
 
@@ -247,6 +251,60 @@ public class OrderService {
 
     public Order getEntity(Long orderId) {
         return orderRepository.findById(orderId).orElseThrow(() -> ApiException.notFound("Order not found"));
+    }
+
+    /**
+     * Re-populates the user's cart with the items from a cancelled/failed order,
+     * so they don't lose their basket if payment fails or they cancel at checkout.
+     * Items that are already in the cart have their quantities merged (summed).
+     * Best-effort: any individual item failure is logged and skipped.
+     */
+    private void restoreCartFromOrder(Order order) {
+        try {
+            Long userId = order.getUser().getId();
+            Cart cart = cartRepository.findByUserId(userId).orElseGet(() -> {
+                Cart c = new Cart();
+                User u = new User();
+                u.setId(userId);
+                c.setUser(u);
+                return cartRepository.save(c);
+            });
+
+            for (OrderItem oi : order.getItems()) {
+                try {
+                    // Find existing cart item for the same product+variant
+                    CartItem existing = cart.getItems().stream()
+                            .filter(ci -> ci.getProduct().getId().equals(oi.getProduct().getId())
+                                    && java.util.Objects.equals(
+                                            ci.getVariant() != null ? ci.getVariant().getId() : null,
+                                            oi.getVariant() != null ? oi.getVariant().getId() : null))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (existing != null) {
+                        // Merge quantities
+                        existing.setQuantity(existing.getQuantity() + oi.getQuantity());
+                    } else {
+                        CartItem ci = new CartItem();
+                        ci.setCart(cart);
+                        ci.setProduct(oi.getProduct());
+                        ci.setVariant(oi.getVariant());
+                        ci.setQuantity(oi.getQuantity());
+                        cart.getItems().add(ci);
+                    }
+                } catch (Exception itemEx) {
+                    log.warn("[CART RESTORE] Skipped order item {} for order {}: {}",
+                            oi.getId(), order.getId(), itemEx.getMessage());
+                }
+            }
+
+            cartRepository.save(cart);
+            log.info("[CART RESTORE] Restored {} item(s) to cart for user {} from cancelled order {}",
+                    order.getItems().size(), userId, order.getId());
+        } catch (Exception ex) {
+            // Never let cart restoration fail the cancellation itself
+            log.error("[CART RESTORE] Failed to restore cart for order {}: {}", order.getId(), ex.getMessage());
+        }
     }
 
     private OrderResponse toResponse(Order o) {

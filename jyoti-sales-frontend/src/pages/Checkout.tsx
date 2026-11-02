@@ -193,8 +193,14 @@ export default function Checkout() {
   }
 
   // ── Cancel pending order (on payment failure / dismiss) ─────────────────
+  // Backend will restore cart items automatically; we then refetch so the cart
+  // badge and count update without requiring a page reload.
   async function cancelPendingOrder(id: number) {
-    try { await api.patch(`/orders/${id}/cancel`) } catch (_) { /* best-effort */ }
+    try {
+      await api.patch(`/orders/${id}/cancel`)
+      // Refetch cart so restored items appear immediately in the navbar badge
+      await qc.invalidateQueries({ queryKey: ['cart'] })
+    } catch (_) { /* best-effort */ }
   }
 
   // ── COD placement ────────────────────────────────────────────────────────
