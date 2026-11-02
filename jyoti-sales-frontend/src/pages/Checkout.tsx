@@ -207,6 +207,7 @@ export default function Checkout() {
   // ── COD placement ────────────────────────────────────────────────────────
   async function handleCOD() {
     if (!orderId) return
+    setError('')
     setStep('processing')
     try {
       await api.post('/payments/initiate', { orderId, method: 'COD' })
@@ -226,6 +227,7 @@ export default function Checkout() {
 
     // ── Validate payment details before proceeding ──
     setPaymentError('')
+    setError('')
     if (onlineSubMethod === 'CARD') {
       const digits = cardNumber.replace(/\s/g, '')
       if (!digits) { setPaymentError('Please enter your card number.'); return }
@@ -346,7 +348,18 @@ export default function Checkout() {
     )
   }
   if (step === 'address' && (!cart || cart.items.length === 0)) {
-    return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Your cart is empty.</div>
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
+        <h2 className="font-display text-2xl font-bold mb-3">Your cart is empty</h2>
+        <p className="text-ink/50 mb-6">Looks like you haven't added anything to checkout yet.</p>
+        <button
+          onClick={() => navigate('/products')}
+          className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow"
+        >
+          Browse Products
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -365,7 +378,7 @@ export default function Checkout() {
         ))}
       </div>
 
-      {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
+      {step === 'address' && error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
       {/* ── Step 1: Address ── */}
       {step === 'address' && (
@@ -799,6 +812,7 @@ export default function Checkout() {
                     setCartRestoring(false)
                     setOrderId(null)
                     setResult(null)
+                    setError('')
                     setStep('address')
                   }}
                   className="rounded-full bg-coral text-white px-6 py-3 font-semibold hover:shadow-glow transition-shadow disabled:opacity-60"

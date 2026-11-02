@@ -5,8 +5,17 @@ import { Trash2 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 
 export default function Cart() {
-  const { cart, updateQuantity, removeItem } = useCart()
+  const { cart, isLoading, isFetching, updateQuantity, removeItem } = useCart()
   const { accessToken } = useAuthStore()
+
+  if (isLoading || (accessToken && isFetching && (!cart || cart.items.length === 0))) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">
+        <div className="h-8 w-8 border-4 border-coral border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        Loading cart…
+      </div>
+    )
+  }
 
   if (!cart || cart.items.length === 0) {
     return (
