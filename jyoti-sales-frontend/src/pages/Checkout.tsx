@@ -78,6 +78,7 @@ export default function Checkout() {
   const [cardCvv, setCardCvv] = useState('')
   const [upiId, setUpiId] = useState('')
   const [bankCode, setBankCode] = useState('')
+  const [paymentError, setPaymentError] = useState('')
 
 
   const [newAddress, setNewAddress] = useState({
@@ -222,6 +223,22 @@ export default function Checkout() {
   // ── Online payment ───────────────────────────────────────────────────────
   async function handleOnlinePayment() {
     if (!orderId) return
+
+    // ── Validate payment details before proceeding ──
+    setPaymentError('')
+    if (onlineSubMethod === 'CARD') {
+      const digits = cardNumber.replace(/\s/g, '')
+      if (!digits) { setPaymentError('Please enter your card number.'); return }
+      if (digits.length < 12) { setPaymentError('Card number must be at least 12 digits.'); return }
+      if (!cardExpiry.trim()) { setPaymentError('Please enter the card expiry date (MM/YY).'); return }
+      if (!cardCvv.trim()) { setPaymentError('Please enter the CVV.'); return }
+    } else if (onlineSubMethod === 'UPI') {
+      if (!upiId.trim()) { setPaymentError('Please enter your UPI ID.'); return }
+      if (!upiId.includes('@')) { setPaymentError('Invalid UPI ID — must contain @  (e.g. name@upi).'); return }
+    } else if (onlineSubMethod === 'NET_BANKING') {
+      if (!bankCode) { setPaymentError('Please select your bank.'); return }
+    }
+
     setStep('processing')
 
     try {
@@ -629,7 +646,7 @@ export default function Checkout() {
                     { key: 'UPI' as const,          label: 'UPI',         sub: 'PhonePe · GPay'  },
                     { key: 'NET_BANKING' as const,  label: 'Net Banking', sub: 'All major banks' },
                   ]).map(({ key, label, sub }) => (
-                    <button key={key} onClick={() => setOnlineSubMethod(key)}
+                    <button key={key} onClick={() => { setOnlineSubMethod(key); setPaymentError('') }}
                       className={clsx(
                         'flex flex-col items-center gap-1 rounded-xl py-3 border-2 text-center transition-all',
                         onlineSubMethod === key
@@ -649,15 +666,15 @@ export default function Checkout() {
                     <p className="text-xs text-ink/40 font-medium uppercase tracking-wide">Card Details</p>
                     <input
                       value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, '').slice(0, 19))}
+                      onChange={(e) => { setCardNumber(e.target.value.replace(/[^\d\s]/g, '').slice(0, 19)); setPaymentError('') }}
                       placeholder="Card number"
                       className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm font-mono tracking-widest focus:outline-none focus:border-coral/50"
                     />
                     <div className="grid grid-cols-2 gap-2">
-                      <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)}
+                      <input value={cardExpiry} onChange={(e) => { setCardExpiry(e.target.value); setPaymentError('') }}
                         placeholder="MM/YY"
                         className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-coral/50" />
-                      <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      <input value={cardCvv} onChange={(e) => { setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4)); setPaymentError('') }}
                         placeholder="CVV" type="password"
                         className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-coral/50" />
                     </div>
@@ -672,7 +689,7 @@ export default function Checkout() {
                   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
                     <p className="text-xs text-ink/40 font-medium uppercase tracking-wide">UPI ID</p>
-                    <input value={upiId} onChange={(e) => setUpiId(e.target.value)}
+                    <input value={upiId} onChange={(e) => { setUpiId(e.target.value); setPaymentError('') }}
                       placeholder="yourname@upi"
                       className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-coral/50" />
                     <p className="text-[11px] text-ink/30">
@@ -686,7 +703,7 @@ export default function Checkout() {
                   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
                     <p className="text-xs text-ink/40 font-medium uppercase tracking-wide">Select Bank</p>
-                    <select value={bankCode} onChange={(e) => setBankCode(e.target.value)}
+                    <select value={bankCode} onChange={(e) => { setBankCode(e.target.value); setPaymentError('') }}
                       className="w-full bg-panel border border-hairline/15 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-coral/50">
                       <option value="">-- Select your bank --</option>
                       <option value="HDFC">HDFC Bank</option>
@@ -716,9 +733,12 @@ export default function Checkout() {
             )}
 
             {/* CTA */}
+            {paymentError && method === 'ONLINE' && (
+              <p className="text-sm text-red-400 text-center -mb-1">{paymentError}</p>
+            )}
             <button
               onClick={method === 'COD' ? handleCOD : handleOnlinePayment}
-              className="w-full rounded-full bg-coral text-white font-semibold py-3.5 hover:shadow-glow transition-shadow text-base"
+              className="w-full rounded-full bg-coral text-white font-semibold py-3.5 hover:shadow-glow transition-shadow text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {method === 'COD' ? 'Place Order (COD)' : `Pay ${formatINR(orderTotal)} Securely`}
             </button>
