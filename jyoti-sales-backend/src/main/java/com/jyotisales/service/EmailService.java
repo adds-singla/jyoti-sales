@@ -2,6 +2,7 @@ package com.jyotisales.service;
 
 import com.jyotisales.entity.Order;
 import com.jyotisales.entity.OrderItem;
+import com.jyotisales.repository.OrderRepository;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -18,6 +20,11 @@ import java.util.Locale;
 /**
  * Sends transactional HTML emails for order lifecycle events.
  * All methods are @Async so they never block the HTTP response thread.
+ *
+ * Each @Async method opens its own @Transactional read-only session so that
+ * lazy collections (items, user) can be initialised safely in the async thread,
+ * avoiding LazyInitializationException that would occur if we tried to access
+ * them after the calling thread's session had already closed.
  *
  * To activate: set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in env.
  * Works with Gmail (App Password), Zoho, AWS SES, or any SMTP provider.
@@ -28,6 +35,7 @@ import java.util.Locale;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final OrderRepository orderRepository;
 
     @Value("${spring.mail.username:noreply@jyotisales.in}")
     private String fromAddress;
@@ -40,16 +48,24 @@ public class EmailService {
 
     // ── Order Confirmation ────────────────────────────────────────────────────
 
+    /**
+     * Reloads the order with a fresh session so lazy associations are available
+     * in this async thread, then sends the HTML confirmation email.
+     */
     @Async
+    @Transactional(readOnly = true)
     public void sendOrderConfirmation(Order order) {
-        String toEmail = resolveEmail(order);
-        if (toEmail == null) return;
-
         try {
-            String subject = "✅ Order Confirmed – " + order.getOrderNumber() + " | " + businessName;
-            String html = buildOrderConfirmationHtml(order);
+            // Reload inside this async thread's own session to avoid LazyInitializationException
+            Order fresh = orderRepository.findById(order.getId()).orElse(null);
+            if (fresh == null) return;
+            String toEmail = resolveEmail(fresh);
+            if (toEmail == null) return;
+
+            String subject = "✅ Order Confirmed – " + fresh.getOrderNumber() + " | " + businessName;
+            String html = buildOrderConfirmationHtml(fresh);
             sendHtml(toEmail, subject, html);
-            log.info("[EMAIL] Order confirmation sent to {} for order {}", toEmail, order.getOrderNumber());
+            log.info("[EMAIL] Order confirmation sent to {} for order {}", toEmail, fresh.getOrderNumber());
         } catch (Exception e) {
             log.error("[EMAIL] Failed to send order confirmation for {}: {}", order.getOrderNumber(), e.getMessage());
         }
@@ -57,20 +73,29 @@ public class EmailService {
 
     // ── Status Update ─────────────────────────────────────────────────────────
 
+    /**
+     * Reloads the order with a fresh session so lazy associations are available
+     * in this async thread, then sends the status-update email.
+     */
     @Async
+    @Transactional(readOnly = true)
     public void sendStatusUpdate(Order order) {
-        String toEmail = resolveEmail(order);
-        if (toEmail == null) return;
-
-        // Only notify on meaningful status transitions
-        if (order.getStatus() == Order.Status.PENDING || order.getStatus() == Order.Status.CONFIRMED) return;
-
         try {
-            String statusLabel = statusLabel(order.getStatus());
-            String subject = statusEmoji(order.getStatus()) + " Order " + statusLabel + " – " + order.getOrderNumber();
-            String html = buildStatusUpdateHtml(order, statusLabel);
+            // Reload inside this async thread's own session
+            Order fresh = orderRepository.findById(order.getId()).orElse(null);
+            if (fresh == null) return;
+
+            // Only notify on meaningful status transitions
+            if (fresh.getStatus() == Order.Status.PENDING || fresh.getStatus() == Order.Status.CONFIRMED) return;
+
+            String toEmail = resolveEmail(fresh);
+            if (toEmail == null) return;
+
+            String statusLabel = statusLabel(fresh.getStatus());
+            String subject = statusEmoji(fresh.getStatus()) + " Order " + statusLabel + " – " + fresh.getOrderNumber();
+            String html = buildStatusUpdateHtml(fresh, statusLabel);
             sendHtml(toEmail, subject, html);
-            log.info("[EMAIL] Status update ({}) sent to {} for order {}", order.getStatus(), toEmail, order.getOrderNumber());
+            log.info("[EMAIL] Status update ({}) sent to {} for order {}", fresh.getStatus(), toEmail, fresh.getOrderNumber());
         } catch (Exception e) {
             log.error("[EMAIL] Failed to send status update for {}: {}", order.getOrderNumber(), e.getMessage());
         }
