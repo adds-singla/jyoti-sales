@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useFlyStore } from '../lib/flyToCart'
 
-// Renders the "fly to cart" clone images triggered from anywhere in the app (see lib/flyToCart.ts).
 export default function FlyToCartLayer() {
   const items = useFlyStore((s) => s.items)
   const remove = useFlyStore((s) => s.remove)

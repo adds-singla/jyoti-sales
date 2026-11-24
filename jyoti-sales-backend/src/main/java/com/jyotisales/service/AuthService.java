@@ -75,11 +75,11 @@ public class AuthService {
         return issueTokens(user);
     }
 
-    /** Mock forgot-password: in a real system this would email/SMS a reset link/OTP. */
+
     public String forgotPassword(String usernameOrPhone) {
         boolean exists = userRepository.findByEmail(usernameOrPhone)
                 .or(() -> userRepository.findByPhone(usernameOrPhone)).isPresent();
-        // Always respond the same way regardless of existence, to avoid account enumeration.
+
         return exists
                 ? "If that account exists, a password reset link has been sent (mock)."
                 : "If that account exists, a password reset link has been sent (mock).";

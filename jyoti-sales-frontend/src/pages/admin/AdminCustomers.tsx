@@ -54,7 +54,7 @@ export default function AdminCustomers() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function AdminCustomers() {
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
             {isFetching ? 'Refreshing…' : 'Refresh'}
           </button>
-          {/* Stats */}
+
           <div className="glass border border-hairline/10 rounded-xl px-4 py-2 text-center">
             <p className="font-bold text-lg">{totalCustomers}</p>
             <p className="text-[10px] text-ink/40 uppercase tracking-wide">Customers</p>
@@ -88,7 +88,7 @@ export default function AdminCustomers() {
         </div>
       </div>
 
-      {/* Error state */}
+
       {isError && (
         <div className="glass rounded-xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
@@ -102,7 +102,7 @@ export default function AdminCustomers() {
         </div>
       )}
 
-      {/* Search */}
+
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/30" />
         <input
@@ -113,7 +113,7 @@ export default function AdminCustomers() {
         />
       </div>
 
-      {/* Table */}
+
       {isLoading ? (
         <div className="text-center py-20">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-coral/50" />

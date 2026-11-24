@@ -15,19 +15,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 
-/**
- * Receives server-to-server webhook events from Razorpay.
- *
- * This is the SAFETY NET for #3 in the market readiness list:
- * If the user closes the browser before the frontend calls /payments/razorpay/verify,
- * Razorpay still calls this endpoint when the payment is captured — so orders
- * are NEVER left stranded in PENDING status.
- *
- * Setup in Razorpay Dashboard → Webhooks → Add Webhook:
- *   URL: https://yourdomain.com/api/payments/razorpay/webhook
- *   Events: payment.captured, payment.failed
- *   Secret: set RAZORPAY_WEBHOOK_SECRET env var to the same value
- */
+// fallback: confirms/fails payment if user closes browser before frontend verify
 @Slf4j
 @RestController
 @RequestMapping("/api/payments/razorpay/webhook")
@@ -45,7 +33,7 @@ public class RazorpayWebhookController {
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature,
             @RequestBody String rawBody) {
 
-        // 1. Verify signature (skip if webhook-secret not configured yet)
+
         if (webhookSecret != null && !webhookSecret.isBlank()) {
             if (!isValidSignature(rawBody, signature)) {
                 log.warn("[WEBHOOK] Invalid Razorpay signature — ignoring event.");
@@ -81,19 +69,19 @@ public class RazorpayWebhookController {
             log.error("[WEBHOOK] Error processing Razorpay webhook: {}", e.getMessage(), e);
         }
 
-        // Always return 200 — Razorpay retries on non-2xx responses
+        // always 200 — Razorpay retries on non-2xx
         return ResponseEntity.ok("received");
     }
 
     private void handleCaptured(String rzpOrderId, String rzpPaymentId) {
-        // Find the Payment row by its providerReference (which is the Razorpay order ID)
+
         paymentRepository.findByProviderReference(rzpOrderId).ifPresentOrElse(payment -> {
             if (payment.getStatus() == Payment.Status.SUCCESS) {
                 log.info("[WEBHOOK] Payment {} already confirmed — idempotent skip.", rzpOrderId);
                 return;
             }
             payment.setStatus(Payment.Status.SUCCESS);
-            payment.setProviderReference(rzpPaymentId); // Update to actual payment ID
+            payment.setProviderReference(rzpPaymentId);
             paymentRepository.save(payment);
             orderService.markConfirmedAndDecrementStock(payment.getOrder().getId());
             log.info("[WEBHOOK] ✅ Order confirmed via webhook for Razorpay order {}", rzpOrderId);

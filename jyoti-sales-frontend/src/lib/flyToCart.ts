@@ -13,14 +13,13 @@ interface FlyState {
   remove: (id: string) => void
 }
 
-// Global queue of "fly to cart" animations — rendered by <FlyToCartLayer/> mounted once at the app root.
 export const useFlyStore = create<FlyState>((set) => ({
   items: [],
   add: (item) => set((s) => ({ items: [...s.items, item] })),
   remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
 }))
 
-// Set by the Navbar's cart icon on mount so callers anywhere in the app know where to fly toward.
+// set by Navbar cart icon for fly-to-cart animation target
 export const cartIconRef: { current: HTMLElement | null } = { current: null }
 
 export function triggerFlyToCart(imageUrl: string, sourceEl: HTMLElement) {

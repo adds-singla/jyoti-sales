@@ -17,18 +17,6 @@ import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.Locale;
 
-/**
- * Sends transactional HTML emails for order lifecycle events.
- * All methods are @Async so they never block the HTTP response thread.
- *
- * Each @Async method opens its own @Transactional read-only session so that
- * lazy collections (items, user) can be initialised safely in the async thread,
- * avoiding LazyInitializationException that would occur if we tried to access
- * them after the calling thread's session had already closed.
- *
- * To activate: set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in env.
- * Works with Gmail (App Password), Zoho, AWS SES, or any SMTP provider.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,17 +34,13 @@ public class EmailService {
     @Value("${app.frontend-url:https://jyotisales.in}")
     private String frontendUrl;
 
-    // ── Order Confirmation ────────────────────────────────────────────────────
 
-    /**
-     * Reloads the order with a fresh session so lazy associations are available
-     * in this async thread, then sends the HTML confirmation email.
-     */
+
     @Async
     @Transactional(readOnly = true)
     public void sendOrderConfirmation(Order order) {
         try {
-            // Reload inside this async thread's own session to avoid LazyInitializationException
+            // reload in async thread to avoid lazy-load issues
             Order fresh = orderRepository.findById(order.getId()).orElse(null);
             if (fresh == null) return;
             String toEmail = resolveEmail(fresh);
@@ -71,21 +55,17 @@ public class EmailService {
         }
     }
 
-    // ── Status Update ─────────────────────────────────────────────────────────
 
-    /**
-     * Reloads the order with a fresh session so lazy associations are available
-     * in this async thread, then sends the status-update email.
-     */
+
     @Async
     @Transactional(readOnly = true)
     public void sendStatusUpdate(Order order) {
         try {
-            // Reload inside this async thread's own session
+            // reload in async thread
             Order fresh = orderRepository.findById(order.getId()).orElse(null);
             if (fresh == null) return;
 
-            // Only notify on meaningful status transitions
+
             if (fresh.getStatus() == Order.Status.PENDING || fresh.getStatus() == Order.Status.CONFIRMED) return;
 
             String toEmail = resolveEmail(fresh);
@@ -101,7 +81,7 @@ public class EmailService {
         }
     }
 
-    // ── Core send ─────────────────────────────────────────────────────────────
+
 
     private void sendHtml(String to, String subject, String html) throws Exception {
         MimeMessage message = mailSender.createMimeMessage();
@@ -113,7 +93,7 @@ public class EmailService {
         mailSender.send(message);
     }
 
-    // ── HTML Builders ─────────────────────────────────────────────────────────
+
 
     private String buildOrderConfirmationHtml(Order order) {
         StringBuilder itemRows = new StringBuilder();
@@ -242,7 +222,7 @@ public class EmailService {
         );
     }
 
-    // ── Base email wrapper ────────────────────────────────────────────────────
+
 
     private String baseTemplate(String heading, String subheading, String content) {
         return """
@@ -282,7 +262,7 @@ public class EmailService {
                 java.time.Year.now().getValue(), businessName);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+
 
     private String resolveEmail(Order order) {
         try {

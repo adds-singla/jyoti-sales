@@ -59,7 +59,6 @@ export default function App() {
               <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
               <Route path="/offers" element={<Offers />} />
 
-              {/* Legal pages */}
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/return-policy" element={<ReturnPolicy />} />

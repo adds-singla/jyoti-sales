@@ -9,25 +9,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Sandbox-only payment provider, active by default (app.payment.provider=dummy).
- *
- * NOT PCI-DSS compliant. NOT a real payment processor. Every card/UPI/bank value
- * here is a seeded test fixture — nothing is sent to any external network. This
- * class exists purely so the checkout flow has a deterministic, swappable
- * implementation of {@link PaymentGatewayService} to build and test against
- * before a real gateway (Razorpay/PayU/...) is wired in.
- *
- * Outcome is deterministic by seeded test value so QA/demo flows are repeatable:
- *   Card numbers ending in ...1111 -> SUCCESS   (Visa test success)
- *   Card numbers ending in ...0002 -> FAILED    (generic decline)
- *   Any other 16-digit Luhn-valid card -> SUCCESS
- *   UPI id "success@upi"  -> SUCCESS
- *   UPI id "failure@upi"  -> FAILED
- *   Any other UPI id -> SUCCESS
- *   Net banking bank code "FAILBANK" -> FAILED, anything else -> SUCCESS
- *   COD -> always INITIATED (settled on delivery, not here)
- */
 @Component
 public class DummyPaymentGatewayProvider implements PaymentGatewayService {
 
@@ -35,7 +16,7 @@ public class DummyPaymentGatewayProvider implements PaymentGatewayService {
     private static final Set<String> DECLINE_CARD_SUFFIXES = Set.of("0002");
     private static final Set<String> SUCCESS_CARD_SUFFIXES = Set.of("1111");
 
-    // in-memory ledger of simulated transactions, keyed by providerReference
+
     private final Map<String, GatewayStatus> simulatedLedger = new ConcurrentHashMap<>();
 
     @Value("${app.payment.provider}")
@@ -51,14 +32,14 @@ public class DummyPaymentGatewayProvider implements PaymentGatewayService {
         String method = command.method() == null ? "" : command.method().toUpperCase();
         String reference = "DUMMY-TXN-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
 
-        // simulate 1-2s network latency of a real gateway
+
         simulateLatency();
 
         GatewayStatus outcome = switch (method) {
             case "CARD" -> resolveCardOutcome(command.cardNumber(), command.cardExpiry(), command.cardCvv());
             case "UPI" -> resolveUpiOutcome(command.upiId());
             case "NET_BANKING" -> resolveBankOutcome(command.bankCode());
-            case "COD" -> GatewayStatus.INITIATED; // settled on delivery
+            case "COD" -> GatewayStatus.INITIATED;
             default -> throw ApiException.badRequest("Unsupported payment method: " + command.method());
         };
 
@@ -88,7 +69,7 @@ public class DummyPaymentGatewayProvider implements PaymentGatewayService {
         return simulatedLedger.getOrDefault(providerReference, GatewayStatus.FAILED);
     }
 
-    // ---- deterministic seeded-outcome helpers (dummy-provider only) ----
+    // deterministic test outcomes
 
     private GatewayStatus resolveCardOutcome(String cardNumber, String expiry, String cvv) {
         if (cardNumber == null || cardNumber.replaceAll("\\s", "").length() < 12) {
@@ -101,7 +82,7 @@ public class DummyPaymentGatewayProvider implements PaymentGatewayService {
         String suffix = digits.substring(digits.length() - 4);
         if (DECLINE_CARD_SUFFIXES.contains(suffix)) return GatewayStatus.FAILED;
         if (SUCCESS_CARD_SUFFIXES.contains(suffix)) return GatewayStatus.SUCCESS;
-        return GatewayStatus.SUCCESS; // default: any other Luhn-valid test card succeeds
+        return GatewayStatus.SUCCESS;
     }
 
     private GatewayStatus resolveUpiOutcome(String upiId) {
@@ -120,7 +101,7 @@ public class DummyPaymentGatewayProvider implements PaymentGatewayService {
         return GatewayStatus.SUCCESS;
     }
 
-    /** Standard Luhn checksum — validated purely against the dummy test card, no real card data ever touches this. */
+
     public static boolean isLuhnValid(String number) {
         int sum = 0;
         boolean alternate = false;

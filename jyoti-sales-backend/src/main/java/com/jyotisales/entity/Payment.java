@@ -30,11 +30,9 @@ public class Payment extends BaseEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
-    // Which provider handled this payment: dummy | razorpay | payu
     @Column(nullable = false)
     private String provider;
 
-    // Provider's transaction/payment reference id
     private String providerReference;
 
     @Column(length = 1000)

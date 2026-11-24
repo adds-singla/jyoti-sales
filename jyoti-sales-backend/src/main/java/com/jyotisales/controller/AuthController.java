@@ -36,10 +36,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.forgotPassword(usernameOrPhone));
     }
 
-    /**
-     * Exchange a Firebase ID token (from Google Sign-In or Phone OTP)
-     * for a Jyoti Sales JWT. Creates the account on first use.
-     */
+
     @PostMapping("/firebase")
     public ResponseEntity<AuthResponse> firebaseLogin(@Valid @RequestBody FirebaseAuthRequest req) {
         return ResponseEntity.ok(firebaseAuthService.authenticateWithFirebase(req.idToken()));

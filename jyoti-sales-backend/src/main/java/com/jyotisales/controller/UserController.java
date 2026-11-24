@@ -17,10 +17,7 @@ public class UserController {
 
     private final UserRepository userRepository;
 
-    /**
-     * Returns a safe DTO of the current user — never exposes lazy collections
-     * or the password hash to the serializer.
-     */
+
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> me() {
         var user = userRepository.findById(CurrentUser.id())

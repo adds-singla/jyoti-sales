@@ -22,7 +22,7 @@ public class Review extends BaseEntity {
     private User user;
 
     @Column(nullable = false)
-    private Integer rating; // 1-5
+    private Integer rating;
 
     private String title;
 

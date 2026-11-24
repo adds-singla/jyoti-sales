@@ -41,7 +41,7 @@ export default function ProductDetail() {
     }
   }, [product, selectedVariant])
 
-  // Keyboard navigation for gallery — defined after product so it's in scope
+
   const navigate = useCallback((dir: 1 | -1) => {
     if (!product) return
     setActiveImage((prev) => {
@@ -149,9 +149,9 @@ export default function ProductDetail() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="grid md:grid-cols-2 gap-10">
-        {/* ── Gallery ── */}
+
         <div>
-          {/* Main image with prev/next arrows */}
+
           <div className="relative aspect-square rounded-card overflow-hidden glass border border-hairline/10 group">
             <AnimatePresence mode="wait">
               <motion.img
@@ -168,14 +168,14 @@ export default function ProductDetail() {
               />
             </AnimatePresence>
 
-            {/* Image counter badge */}
+
             {product.imageUrls.length > 1 && (
               <span className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
                 {activeImage + 1} / {product.imageUrls.length}
               </span>
             )}
 
-            {/* Expand / fullscreen button */}
+
             <button
               onClick={() => setLightbox(true)}
               className="absolute top-3 left-3 bg-black/50 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
@@ -184,7 +184,7 @@ export default function ProductDetail() {
               <Expand className="h-4 w-4" />
             </button>
 
-            {/* Prev arrow */}
+
             {product.imageUrls.length > 1 && (
               <>
                 <button
@@ -205,7 +205,7 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* Thumbnail strip */}
+
           {product.imageUrls.length > 1 && (
             <div
               ref={thumbnailsRef}
@@ -227,7 +227,7 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {/* Dot indicators (mobile) */}
+
           {product.imageUrls.length > 1 && (
             <div className="flex justify-center gap-1.5 mt-3 md:hidden">
               {product.imageUrls.map((_, i) => (
@@ -243,7 +243,7 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* ── Lightbox modal ── */}
+
         <AnimatePresence>
           {lightbox && (
             <motion.div
@@ -265,7 +265,7 @@ export default function ProductDetail() {
                 onClick={(e) => e.stopPropagation()}
               />
 
-              {/* Close */}
+
               <button
                 onClick={() => setLightbox(false)}
                 className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm"
@@ -273,7 +273,7 @@ export default function ProductDetail() {
                 <X className="h-6 w-6" />
               </button>
 
-              {/* Lightbox arrows */}
+
               {product.imageUrls.length > 1 && (
                 <>
                   <button
@@ -291,7 +291,7 @@ export default function ProductDetail() {
                 </>
               )}
 
-              {/* Lightbox counter */}
+
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3">
                 <span className="text-white/60 text-sm">{activeImage + 1} of {product.imageUrls.length}</span>
               </div>
@@ -299,7 +299,7 @@ export default function ProductDetail() {
           )}
         </AnimatePresence>
 
-        {/* Info */}
+
         <div>
           <p className="text-sm text-ink/50">{product.brand} · {product.categoryName}</p>
           <h1 className="font-display text-2xl md:text-3xl font-bold mt-1">{product.name}</h1>
@@ -378,7 +378,7 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Specs */}
+
       <div className="mt-14 grid md:grid-cols-2 gap-10">
         <div>
           <h2 className="font-display text-xl font-bold mb-4">Description</h2>
@@ -399,7 +399,7 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Reviews */}
+
       <div className="mt-14">
         <h2 className="font-display text-xl font-bold mb-4">Reviews</h2>
         <div className="space-y-4 mb-8">
@@ -438,7 +438,7 @@ export default function ProductDetail() {
         )}
       </div>
 
-      {/* Related */}
+
       {related && related.length > 0 && (
         <div className="mt-14">
           <h2 className="font-display text-xl font-bold mb-4">You may also like</h2>

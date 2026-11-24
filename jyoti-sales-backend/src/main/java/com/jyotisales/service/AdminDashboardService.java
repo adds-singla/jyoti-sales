@@ -36,7 +36,7 @@ public class AdminDashboardService {
     private static final int    LOW_STOCK_THRESHOLD = 5;
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
 
-    // ── Legacy stats (unchanged) ──────────────────────────────────────────────
+
 
     @Transactional(readOnly = true)
     public DashboardStatsResponse getStats() {
@@ -62,20 +62,13 @@ public class AdminDashboardService {
 
     // ── Analytics endpoint ────────────────────────────────────────────────────
 
-    /**
-     * @Transactional is REQUIRED here — the JOIN FETCH query in the repo
-     * loads items + user eagerly, but the Hibernate session must stay open
-     * while we stream through associations. Without this annotation
-     * accessing o.getItems() or o.getUser() would throw
-     * LazyInitializationException.
-     */
     @Transactional(readOnly = true)
     public DashboardAnalyticsResponse getAnalytics(String period, int year, int month, int week) {
         Instant[] range = resolveDateRange(period, year, month, week);
         Instant   from  = range[0];
         Instant   to    = range[1];
 
-        // Single DB query — items + user already JOIN FETCH-ed
+
         List<Order> orders  = orderRepository.findAllInRange(from, to);
         List<Order> revenue = orders.stream()
                 .filter(o -> o.getStatus() != Order.Status.CANCELLED
@@ -99,12 +92,12 @@ public class AdminDashboardService {
                 periodRevenue, periodOrders, avgOrderValue, topCustomers);
     }
 
-    // ── Date range ────────────────────────────────────────────────────────────
+
 
     private Instant[] resolveDateRange(String period, int year, int month, int week) {
         return switch (period) {
             case "day" -> {
-                // week param reused as day-of-month
+
                 LocalDate day = LocalDate.of(year, month > 0 ? month : LocalDate.now(IST).getMonthValue(),
                         week > 0 ? week : LocalDate.now(IST).getDayOfMonth());
                 yield new Instant[]{
@@ -130,7 +123,7 @@ public class AdminDashboardService {
                 };
             }
             case "financial_year" -> {
-                // Indian FY: 1 April → 31 March
+
                 LocalDate fyStart = LocalDate.of(year, 4, 1);
                 LocalDate fyEnd   = LocalDate.of(year + 1, 4, 1);
                 yield new Instant[]{
@@ -138,12 +131,12 @@ public class AdminDashboardService {
                         fyEnd.atStartOfDay(IST).toInstant()
                 };
             }
-            default -> // "all_time"
+            default ->
                 new Instant[]{Instant.EPOCH, Instant.now().plusSeconds(1)};
         };
     }
 
-    // ── Revenue trend ─────────────────────────────────────────────────────────
+
 
     private List<RevenuePoint> buildTrend(String period, List<Order> revenue, int year, int month) {
         return switch (period) {
@@ -177,7 +170,7 @@ public class AdminDashboardService {
                 yield pts;
             }
             default -> {
-                // all_time — group by "MMM yyyy", sorted chronologically
+
                 Map<String, List<Order>> byYearMonth = revenue.stream()
                         .collect(Collectors.groupingBy(o ->
                                 o.getCreatedAt().atZone(IST)
@@ -185,7 +178,7 @@ public class AdminDashboardService {
                 yield byYearMonth.entrySet().stream()
                         .sorted(Map.Entry.comparingByKey())
                         .map(e -> {
-                            // Reformat key "2025-04" → "Apr 2025" for display
+
                             String display = YearMonth.parse(e.getKey())
                                     .format(DateTimeFormatter.ofPattern("MMM yyyy"));
                             return new RevenuePoint(display, sumRevenue(e.getValue()), e.getValue().size());
@@ -206,7 +199,7 @@ public class AdminDashboardService {
         return list;
     }
 
-    // ── Product stats ─────────────────────────────────────────────────────────
+
 
     private List<ProductStat> buildProductStats(List<Order> revenue) {
         Map<Long, List<OrderItem>> byProduct = revenue.stream()
@@ -230,7 +223,7 @@ public class AdminDashboardService {
                 .toList();
     }
 
-    // ── Order status breakdown ────────────────────────────────────────────────
+
 
     private List<StatusCount> buildStatusBreakdown(List<Order> orders) {
         return orders.stream()
@@ -241,7 +234,7 @@ public class AdminDashboardService {
                 .toList();
     }
 
-    // ── Payment method breakdown ──────────────────────────────────────────────
+
 
     private List<MethodCount> buildMethodBreakdown(Instant from, Instant to) {
         List<Payment> payments = paymentRepository.findSuccessfulInRange(from, to);
@@ -259,7 +252,7 @@ public class AdminDashboardService {
                 .toList();
     }
 
-    // ── Top customers ─────────────────────────────────────────────────────────
+
 
     private List<TopCustomer> buildTopCustomers(List<Order> revenue) {
         return revenue.stream()
@@ -276,7 +269,7 @@ public class AdminDashboardService {
                 .toList();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+
 
     private BigDecimal sumRevenue(List<Order> orders) {
         return orders.stream().map(Order::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);

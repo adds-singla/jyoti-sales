@@ -20,7 +20,7 @@ export default function AdminLayout() {
   const { data: pendingData } = useQuery({
     queryKey: ['admin-pending-count'],
     queryFn: async () => (await api.get('/admin/orders/pending-count')).data,
-    refetchInterval: 15000, // poll every 15s for new orders
+    refetchInterval: 15000,
     enabled: role === 'ROLE_ADMIN',
   })
   const pendingCount = pendingData?.count ?? 0

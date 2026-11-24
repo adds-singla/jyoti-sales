@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton'
 
-// ── Status config ──
+
 const TRACKING_STEPS = ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'] as const
 const statusMeta: Record<string, { label: string; icon: typeof Clock; color: string }> = {
   PENDING: { label: 'Order Placed', icon: Clock, color: 'text-amber-400' },
@@ -35,7 +35,7 @@ export default function Profile() {
   const [cancellingId, setCancellingId] = useState<number | null>(null)
   const [cancelError, setCancelError] = useState('')
 
-  // Address form state
+
   const [showAddressForm, setShowAddressForm] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null)
   const emptyAddress = { label: 'Home', recipientName: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', isDefault: false }
@@ -74,7 +74,7 @@ export default function Profile() {
 
   if (!accessToken) return <Navigate to="/login" replace />
 
-  // ── Address handlers ──
+
   function startEditAddress(a: Address) {
     setAddressForm({
       label: a.label, recipientName: a.recipientName, phone: a.phone,
@@ -114,7 +114,7 @@ export default function Profile() {
     refetchAddresses()
   }
 
-  // ── Tracking helper ──
+
   function getStepIndex(status: string) {
     const idx = TRACKING_STEPS.indexOf(status as any)
     return idx >= 0 ? idx : -1
@@ -128,13 +128,13 @@ export default function Profile() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
-      {/* Header */}
+
       <div className="mb-8">
         <h1 className="font-display text-2xl font-bold">My Account</h1>
         <p className="text-ink/50 text-sm mt-1">{fullName} · {user?.email || user?.phone}</p>
       </div>
 
-      {/* Tabs */}
+
       <div className="flex gap-1 mb-8 border-b border-hairline/10">
         {tabs.map((t) => (
           <button
@@ -154,7 +154,7 @@ export default function Profile() {
         ))}
       </div>
 
-      {/* ─── Orders Tab ─── */}
+
       {activeTab === 'orders' && (
         <div className="space-y-4">
           {orders?.length ? orders.map((o) => {
@@ -170,7 +170,7 @@ export default function Profile() {
                 layout
                 className="glass rounded-card border border-hairline/10 overflow-hidden"
               >
-                {/* Order summary row */}
+
                 <div
                   className="flex items-center gap-4 p-4 cursor-pointer hover:bg-panel/30 transition-colors"
                   onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}
@@ -192,7 +192,7 @@ export default function Profile() {
                   {isExpanded ? <ChevronUp className="h-4 w-4 text-ink/30" /> : <ChevronDown className="h-4 w-4 text-ink/30" />}
                 </div>
 
-                {/* Expanded detail */}
+
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -203,12 +203,12 @@ export default function Profile() {
                       className="overflow-hidden"
                     >
                       <div className="border-t border-hairline/10 p-4 space-y-5">
-                        {/* ── Order Tracking Timeline ── */}
+
                         {!isCancelled && (
                           <div>
                             <h4 className="text-xs font-semibold text-ink/40 uppercase tracking-wider mb-4">Order Tracking</h4>
                             <div className="flex items-start justify-between relative">
-                              {/* Progress bar behind the icons */}
+
                               <div className="absolute top-5 left-5 right-5 h-0.5 bg-hairline/15">
                                 <div
                                   className="h-full bg-gradient-to-r from-coral to-plum transition-all duration-500"
@@ -254,7 +254,7 @@ export default function Profile() {
                           </div>
                         )}
 
-                        {/* ── Items ── */}
+
                         <div>
                           <h4 className="text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">Items</h4>
                           <div className="space-y-2">
@@ -270,7 +270,7 @@ export default function Profile() {
                           </div>
                         </div>
 
-                        {/* ── Price breakdown ── */}
+
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                           <div className="bg-panel/30 rounded-lg px-3 py-2">
                             <span className="text-ink/40">Subtotal</span>
@@ -292,9 +292,9 @@ export default function Profile() {
                           </div>
                         </div>
 
-                        {/* ── Actions: Cancel + Invoice ── */}
+
                         <div className="flex items-center gap-3 flex-wrap">
-                          {/* Cancel button — only for PENDING or CONFIRMED */}
+
                           {(o.status === 'PENDING' || o.status === 'CONFIRMED') && (
                             <button
                               onClick={() => cancelOrder(o.id)}
@@ -327,12 +327,12 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ─── Addresses Tab ─── */}
+
       {activeTab === 'addresses' && (
         <div className="space-y-4">
           {addressMsg && <p className="text-sm text-plum">{addressMsg}</p>}
 
-          {/* Saved addresses */}
+
           {addresses?.map((a) => (
             <div key={a.id} className={clsx(
               'glass rounded-card p-4 border transition-colors',
@@ -362,7 +362,7 @@ export default function Profile() {
             </div>
           ))}
 
-          {/* Add / Edit form */}
+
           {showAddressForm ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -376,7 +376,7 @@ export default function Profile() {
                 </button>
               </div>
 
-              {/* Label selector */}
+
               <div className="flex gap-2">
                 {['Home', 'Work', 'Office', 'Other'].map((lbl) => (
                   <button
@@ -468,7 +468,7 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ─── Account Tab ─── */}
+
       {activeTab === 'account' && (
         <div className="space-y-6 max-w-lg">
           <div className="glass rounded-card p-5 border border-hairline/10 space-y-4">

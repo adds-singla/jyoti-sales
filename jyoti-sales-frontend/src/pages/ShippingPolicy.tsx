@@ -12,7 +12,7 @@ export default function ShippingPolicy() {
         <p className="text-sm text-ink/40">Last updated: {today}</p>
       </div>
 
-      {/* Quick summary cards */}
+
       <div className="grid sm:grid-cols-2 gap-4 mb-10">
         {[
           { icon: Truck,   title: 'Local Delivery', desc: 'Same-day or next-day within Rampura Phul & nearby areas', color: 'text-coral' },

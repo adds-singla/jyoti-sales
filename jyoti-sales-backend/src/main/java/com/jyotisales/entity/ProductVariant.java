@@ -16,11 +16,9 @@ public class ProductVariant extends BaseEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    // e.g. "Color", "Capacity", "Size"
     @Column(nullable = false)
     private String variantType;
 
-    // e.g. "Midnight Black", "1.5 Ton", "55 inch"
     @Column(nullable = false)
     private String variantValue;
 

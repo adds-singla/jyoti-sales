@@ -13,11 +13,11 @@ import {
 } from 'recharts'
 import { useState } from 'react'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+
 
 type Period = 'day' | 'week' | 'month' | 'financial_year' | 'all_time'
 
-// ─── Colour palettes ──────────────────────────────────────────────────────────
+
 
 const PIE_COLORS = ['#f2a65a', '#c084fc', '#34d399', '#60a5fa', '#fb923c', '#f87171', '#a78bfa']
 
@@ -31,7 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
   REFUNDED:   '#fb923c',
 }
 
-// ─── Custom tooltip ───────────────────────────────────────────────────────────
+
 
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
@@ -47,7 +47,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+
 
 export default function Dashboard() {
   const now = new Date()
@@ -59,7 +59,7 @@ export default function Dashboard() {
   const [year, setYear]      = useState(fyYear)
   const [month, setMonth]    = useState(curMonth)
 
-  // Legacy stats (top KPI cards)
+
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats, isFetching: statsFetching } =
     useQuery({
       queryKey: ['admin-dashboard'],
@@ -69,7 +69,7 @@ export default function Dashboard() {
       refetchInterval: (q) => q.state.status === 'error' ? 8000 : false,
     })
 
-  // Rich analytics
+
   const analyticsParams = new URLSearchParams({
     period,
     year: String(year),
@@ -89,7 +89,7 @@ export default function Dashboard() {
   const handleRefresh = () => { refetchStats(); refetchAnalytics() }
   const isFetching = statsFetching || analyticsFetching
 
-  // ── Period label ────────────────────────────────────────────────────────────
+
   const periodLabel = {
     day: `Today`,
     week: `This Week`,
@@ -98,7 +98,7 @@ export default function Dashboard() {
     all_time: `All Time`,
   }[period]
 
-  // ── Stat cards (top row) ────────────────────────────────────────────────────
+
   const kpiCards = [
     { label: 'Total Revenue',     value: stats ? formatINR(stats.totalRevenue)     : '—', icon: IndianRupee,  color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
     { label: 'Total Orders',      value: stats?.totalOrders     ?? '—',              icon: ShoppingBag,     color: 'text-blue-400',    bg: 'bg-blue-400/10'    },
@@ -112,13 +112,13 @@ export default function Dashboard() {
     { label: 'Avg. Order Value',         value: analytics ? formatINR(analytics.avgOrderValue)  : '—', icon: ArrowUpRight, color: 'text-purple-400' },
   ]
 
-  // ── Year options ────────────────────────────────────────────────────────────
+
   const yearOptions = Array.from({ length: 5 }, (_, i) => curYear - i)
 
   return (
     <div className="space-y-6">
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold">Dashboard</h1>
         <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Error banner ────────────────────────────────────────────────────── */}
+
       {(statsError || analyticsError) && (
         <div className="glass rounded-xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
@@ -150,7 +150,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── All-time KPI cards ───────────────────────────────────────────────── */}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {kpiCards.map((c) => (
           <div key={c.label} className="glass rounded-card p-5 border border-hairline/10">
@@ -168,7 +168,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── Period selector ──────────────────────────────────────────────────── */}
+
       <div className="glass rounded-card p-4 border border-hairline/10">
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-ink/40 font-medium mr-1">Period:</span>
@@ -184,7 +184,7 @@ export default function Dashboard() {
             </button>
           ))}
 
-          {/* Year picker */}
+
           {(period === 'financial_year' || period === 'month') && (
             <select
               value={year}
@@ -199,7 +199,7 @@ export default function Dashboard() {
             </select>
           )}
 
-          {/* Month picker */}
+
           {period === 'month' && (
             <select
               value={month}
@@ -216,7 +216,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Period KPI mini-cards ─────────────────────────────────────────────── */}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {periodKpis.map(c => (
           <div key={c.label} className="glass rounded-card p-4 border border-hairline/10 flex items-center gap-4">
@@ -232,7 +232,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── Revenue trend chart ───────────────────────────────────────────────── */}
+
       <div className="glass rounded-card p-5 border border-hairline/10">
         <h2 className="font-semibold text-sm mb-4 flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-coral" />
@@ -262,10 +262,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ── Two-column row: Order status pie + Payment method pie ──────────────── */}
+
       <div className="grid md:grid-cols-2 gap-4">
 
-        {/* Order status breakdown */}
+
         <div className="glass rounded-card p-5 border border-hairline/10">
           <h2 className="font-semibold text-sm mb-4 flex items-center gap-2">
             <PieIcon className="h-4 w-4 text-purple-400" />
@@ -297,7 +297,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Payment method breakdown */}
+
         <div className="glass rounded-card p-5 border border-hairline/10">
           <h2 className="font-semibold text-sm mb-4 flex items-center gap-2">
             <IndianRupee className="h-4 w-4 text-emerald-400" />
@@ -330,7 +330,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Top Products table ────────────────────────────────────────────────── */}
+
       <div className="glass rounded-card p-5 border border-hairline/10">
         <h2 className="font-semibold text-sm mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-400" />
@@ -345,7 +345,7 @@ export default function Dashboard() {
           </div>
         ) : analytics?.topProducts?.length ? (
           <>
-            {/* Bar chart */}
+
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
                 data={analytics.topProducts.slice(0,8)}
@@ -361,7 +361,7 @@ export default function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
 
-            {/* Detail table */}
+
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -392,7 +392,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ── Top Customers ─────────────────────────────────────────────────────── */}
+
       {analytics?.topCustomers && analytics.topCustomers.length > 0 && (
         <div className="glass rounded-card p-5 border border-hairline/10">
           <h2 className="font-semibold text-sm mb-4 flex items-center gap-2">
@@ -424,7 +424,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Low stock alerts ─────────────────────────────────────────────────── */}
+
       {stats?.lowStockItems && stats.lowStockItems.length > 0 && (
         <div className="glass rounded-card p-5 border border-amber-400/20">
           <h2 className="font-semibold flex items-center gap-2 mb-4 text-amber-400 text-sm">
@@ -441,7 +441,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Loading overlay for initial load */}
+
       {statsLoading && (
         <div className="text-center py-8 text-ink/30 text-sm">
           <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-coral/50" />

@@ -8,17 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Picks the active PaymentGatewayService implementation based on the
- * `app.payment.provider` config flag (dummy | razorpay | payu | ...).
- *
- * To add a real gateway later:
- *   1. Implement PaymentGatewayService in a new @Component (e.g. RazorpayGatewayProvider).
- *      See src/main/resources/payment-provider-templates/ for a starting-point sketch.
- *   2. Set app.payment.provider=razorpay (env var PAYMENT_PROVIDER=razorpay).
- *   3. Nothing else changes — controllers/services/DB schema are untouched because
- *      they only ever talk to the PaymentGatewayService interface.
- */
 @Component
 public class PaymentProviderResolver {
 

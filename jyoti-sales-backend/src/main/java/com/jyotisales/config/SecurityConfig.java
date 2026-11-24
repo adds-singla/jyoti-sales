@@ -78,14 +78,13 @@ public class SecurityConfig {
                         "/api/banners/**", "/api/reviews/product/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                // Razorpay calls this server-to-server (no JWT). Secured by HMAC signature inside the controller.
+                // webhook: no JWT, HMAC-verified in controller
                 .requestMatchers(HttpMethod.POST, "/api/payments/razorpay/webhook").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
-                // Return 401 (not 403) when the request is unauthenticated, so the frontend
-                // refresh-token interceptor can detect expired access tokens and retry.
+                // 401 so frontend token-refresh interceptor can kick in
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint())
             )
             .authenticationProvider(authenticationProvider())
@@ -94,10 +93,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Custom entry point: sends HTTP 401 with a JSON body whenever an unauthenticated
-     * request hits a protected endpoint. Without this, Spring's default sends 403.
-     */
+
     @Bean
     public AuthenticationEntryPoint jwtAuthenticationEntryPoint() {
         return (request, response, authException) -> {

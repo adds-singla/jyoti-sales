@@ -11,6 +11,6 @@ describe('estimateEmi', () => {
   it('returns a positive monthly estimate less than the total for a 9-month term', () => {
     const emi = estimateEmi(27000, 9)
     expect(emi).toBeGreaterThan(0)
-    expect(emi * 9).toBeGreaterThan(27000) // includes illustrative interest
+    expect(emi * 9).toBeGreaterThan(27000)
   })
 })

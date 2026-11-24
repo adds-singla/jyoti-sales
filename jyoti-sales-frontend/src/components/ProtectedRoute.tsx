@@ -5,12 +5,6 @@ interface Props {
   children: React.ReactNode
 }
 
-/**
- * Wraps any route that requires the user to be logged in.
- * If not authenticated, redirects to /login and preserves
- * the attempted URL in `?redirect=` so the user lands back
- * after signing in.
- */
 export default function ProtectedRoute({ children }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const location = useLocation()

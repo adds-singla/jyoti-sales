@@ -18,25 +18,21 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    /** Step 1 — Create a Razorpay order (or dummy/COD). Returns razorpayOrderId for the modal. */
+
     @PostMapping("/initiate")
     public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody PaymentInitiateRequest req) {
         return ResponseEntity.ok(paymentService.initiate(req));
     }
 
-    /**
-     * Step 2 (Razorpay only) — Frontend calls this after the checkout.js modal succeeds.
-     * Verifies HMAC-SHA256 signature and confirms the order.
-     */
+
     @PostMapping("/razorpay/verify")
     public ResponseEntity<PaymentResponse> razorpayVerify(@Valid @RequestBody RazorpayVerifyRequest req) {
-        // Pack the three Razorpay values into a single pipe-delimited string
-        // that RazorpayGatewayProvider.verify() knows how to parse.
+
         String compoundRef = req.razorpayOrderId() + "|" + req.razorpayPaymentId() + "|" + req.razorpaySignature();
         return ResponseEntity.ok(paymentService.verify(req.paymentId(), compoundRef));
     }
 
-    /** Legacy generic verify (still used by dummy provider / testing) */
+
     @PostMapping("/verify")
     public ResponseEntity<PaymentResponse> verify(@Valid @RequestBody
             com.jyotisales.dto.PaymentVerifyRequest req) {

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record PaymentInitiateRequest(
         @NotNull Long orderId,
-        @NotNull String method,       // CARD | UPI | NET_BANKING | COD
+        @NotNull String method,
         String cardNumber,
         String cardExpiry,
         String cardCvv,

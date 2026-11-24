@@ -47,7 +47,7 @@ public class Product extends BaseEntity {
     private boolean featured = false;
     private boolean active = true;
 
-    // simple key-value spec map, stored as JSON text column (portable, no extra hibernate-types dep)
+
     @Column(name = "specs_json", columnDefinition = "text")
     private String specsJson = "{}";
 

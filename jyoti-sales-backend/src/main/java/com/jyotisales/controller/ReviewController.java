@@ -28,8 +28,7 @@ public class ReviewController {
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ReviewResponse> add(@Valid @RequestBody ReviewRequest req) {
-        // verifiedPurchase gating is simplified here (true if user is authenticated & has ordered the product
-        // in a full implementation — left as false by default; wire to OrderItemRepository check as needed).
+
         return ResponseEntity.ok(reviewService.add(CurrentUser.id(), false, req));
     }
 }

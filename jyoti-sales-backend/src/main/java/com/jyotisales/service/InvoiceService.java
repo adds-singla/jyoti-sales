@@ -18,11 +18,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-/**
- * Generates a professional GST-compliant PDF invoice for any Order.
- *
- * Usage: call generate(order) → returns PDF bytes → stream to client.
- */
 @Slf4j
 @Service
 public class InvoiceService {
@@ -42,7 +37,7 @@ public class InvoiceService {
     @Value("${app.business.gstin:N/A}")
     private String bizGstin;
 
-    private static final Color CORAL    = new Color(242, 166, 90);   // brand accent
+    private static final Color CORAL    = new Color(242, 166, 90);
     private static final Color DARK_BG  = new Color(22, 22, 22);
     private static final Color LIGHT_BG = new Color(245, 245, 245);
     private static final Color BORDER   = new Color(220, 220, 220);
@@ -52,7 +47,7 @@ public class InvoiceService {
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("dd MMM yyyy").withZone(ZoneId.of("Asia/Kolkata"));
 
-    // ── Public API ────────────────────────────────────────────────────────────
+
 
     public byte[] generate(Order order) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -71,7 +66,7 @@ public class InvoiceService {
         }
     }
 
-    // ── Body sections ─────────────────────────────────────────────────────────
+
 
     private void addInvoiceBody(Document doc, Order order) throws DocumentException {
         Font titleFont   = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, DARK_BG);
@@ -82,7 +77,7 @@ public class InvoiceService {
         Font totalFont   = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, DARK_BG);
         Font smallMuted  = FontFactory.getFont(FontFactory.HELVETICA, 8, MUTED);
 
-        // ── Header: logo text + TAX INVOICE label ──
+
         PdfPTable header = new PdfPTable(2);
         header.setWidthPercentage(100);
         header.setWidths(new float[]{3, 1});
@@ -110,7 +105,7 @@ public class InvoiceService {
         taxCell.addElement(taxLabel);
         header.addCell(taxCell);
 
-        // Separator line
+
         PdfPCell sep = new PdfPCell();
         sep.setColspan(2);
         sep.setBackgroundColor(CORAL);
@@ -119,13 +114,13 @@ public class InvoiceService {
         header.addCell(sep);
         doc.add(header);
 
-        // ── Order meta: invoice # + date | customer + shipping ──
+
         PdfPTable meta = new PdfPTable(2);
         meta.setWidthPercentage(100);
         meta.setWidths(new float[]{1, 1});
         meta.setSpacingAfter(14);
 
-        // Left: Invoice details
+
         PdfPCell leftMeta = metaBox("Invoice Details");
         leftMeta.addElement(metaRow("Invoice No.", order.getOrderNumber(), labelFont, bodyFont));
         leftMeta.addElement(metaRow("Date", DATE_FMT.format(order.getCreatedAt()), labelFont, bodyFont));
@@ -134,7 +129,7 @@ public class InvoiceService {
         }
         meta.addCell(leftMeta);
 
-        // Right: Bill-to
+
         PdfPCell rightMeta = metaBox("Bill To");
         Order.ShippingSnapshot addr = order.getShippingAddress();
         if (addr != null) {
@@ -149,13 +144,13 @@ public class InvoiceService {
         meta.addCell(rightMeta);
         doc.add(meta);
 
-        // ── Items table ──
+
         PdfPTable items = new PdfPTable(5);
         items.setWidthPercentage(100);
         items.setWidths(new float[]{0.5f, 3.5f, 1, 1.2f, 1.2f});
         items.setSpacingAfter(12);
 
-        // Table header
+
         String[] cols = {"#", "Product", "Qty", "Unit Price", "Total"};
         for (String col : cols) {
             PdfPCell c = new PdfPCell(new Phrase(col, labelFont));
@@ -168,7 +163,7 @@ public class InvoiceService {
             items.addCell(c);
         }
 
-        // Table rows
+
         int rowNum = 1;
         for (OrderItem oi : order.getItems()) {
             BigDecimal lineTotal = oi.getUnitPrice().multiply(BigDecimal.valueOf(oi.getQuantity()));
@@ -182,7 +177,7 @@ public class InvoiceService {
         }
         doc.add(items);
 
-        // ── Totals ──
+
         PdfPTable totals = new PdfPTable(2);
         totals.setWidthPercentage(45);
         totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
@@ -197,7 +192,7 @@ public class InvoiceService {
         addTotalRow(totals, "Shipping", order.getShippingFee().compareTo(BigDecimal.ZERO) == 0
                 ? "FREE" : formatInr(order.getShippingFee()), bodyFont, bodyFont, Color.WHITE);
 
-        // Grand total row
+
         PdfPCell gtLabel = new PdfPCell(new Phrase("TOTAL", totalFont));
         gtLabel.setBackgroundColor(DARK_BG);
         gtLabel.setPadding(9);
@@ -213,7 +208,7 @@ public class InvoiceService {
 
         doc.add(totals);
 
-        // ── Terms / Notes ──
+
         Paragraph terms = new Paragraph();
         terms.add(new Chunk("Terms & Conditions\n", labelFont));
         terms.add(new Chunk("1. Goods once sold will not be taken back unless defective.\n", smallMuted));
@@ -223,7 +218,7 @@ public class InvoiceService {
         doc.add(terms);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+
 
     private PdfPCell metaBox(String title) {
         Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, MUTED);
@@ -275,7 +270,7 @@ public class InvoiceService {
         return fmt.format(amount);
     }
 
-    // ── Header/Footer on every page ───────────────────────────────────────────
+
 
     private class HeaderFooter extends PdfPageEventHelper {
         @Override

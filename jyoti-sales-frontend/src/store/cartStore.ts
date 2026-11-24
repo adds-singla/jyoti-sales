@@ -1,8 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-// Guest cart (localStorage) used when logged out. Once logged in, cart lives server-side
-// (see CartService / useCart hooks) and this store is bypassed.
+// guest cart (localStorage) — bypassed once logged in
 export interface GuestCartItem {
   productId: number
   variantId?: number

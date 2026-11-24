@@ -49,10 +49,10 @@ export default function Login() {
   useEffect(() => {
     if (!auth) return
 
-    // Check if we're returning from a Google redirect
+
     const googlePending = sessionStorage.getItem('google_login_pending')
 
-    // Clear any stale redirect flags
+
     sessionStorage.removeItem('google_login_pending')
     getRedirectResult(auth)
       .then(async (result) => {
@@ -80,11 +80,11 @@ export default function Login() {
         setError(apiErrorMessage(err))
       })
 
-    // Fallback: onAuthStateChanged for when getRedirectResult is null
+
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user || tokenExchanged.current) return
       const googlePending2 = sessionStorage.getItem('google_login_pending')
-      if (!googlePending2) return  // Only exchange if login was initiated here
+      if (!googlePending2) return
       const providerIds = user.providerData.map((p) => p.providerId)
       if (!providerIds.includes('google.com')) return
 
@@ -104,14 +104,14 @@ export default function Login() {
       }
     })
     return () => unsub()
-  }, []) // eslint-disable-line
+  }, [])
 
   async function handleGoogle() {
     if (!auth) { setError('Google login requires Firebase credentials.'); return }
     setError('')
     const provider = new GoogleAuthProvider()
     try {
-      // Try popup first (works on production, no state loss)
+
       await setPersistence(auth, browserLocalPersistence)
       const result = await signInWithPopup(auth, provider)
       setLoading(true)
@@ -122,7 +122,7 @@ export default function Login() {
       navigate(redirectTo, { replace: true })
     } catch (err: any) {
       if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user') {
-        // Fallback to redirect if popup is blocked
+
         sessionStorage.setItem('google_login_pending', '1')
         setLoading(true)
         try {
@@ -213,7 +213,7 @@ export default function Login() {
             <p className="text-ink/40 text-sm">Sign in to your Jyoti Sales account</p>
           </div>
 
-          {/* Debug info — visible on screen */}
+
           {debugMsg && (
             <div className="mb-4 bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-2 text-xs text-blue-400 break-all">
               🔍 {debugMsg}

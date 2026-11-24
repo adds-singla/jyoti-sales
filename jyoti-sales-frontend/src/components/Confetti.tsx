@@ -13,8 +13,6 @@ interface Piece {
   delay: number
 }
 
-// Small self-contained confetti burst — used once, on a successful order, per the
-// "single orchestrated moment" motion principle rather than scattered effects.
 export default function Confetti({ count = 44 }: { count?: number }) {
   const pieces: Piece[] = Array.from({ length: count }).map((_, i) => {
     const angle = Math.random() * Math.PI * 2

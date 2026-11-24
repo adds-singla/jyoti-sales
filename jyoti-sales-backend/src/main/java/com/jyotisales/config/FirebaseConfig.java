@@ -28,14 +28,14 @@ public class FirebaseConfig {
 
         InputStream credentialsStream = null;
 
-        // 1. Try environment variable first (production / Render)
+        // env var first (prod), then classpath file (local dev)
         String envJson = System.getenv("FIREBASE_SERVICE_ACCOUNT_JSON");
         if (envJson != null && !envJson.isBlank()) {
             credentialsStream = new ByteArrayInputStream(envJson.getBytes(StandardCharsets.UTF_8));
             log.info("[Firebase] Initialized from FIREBASE_SERVICE_ACCOUNT_JSON env var");
         }
 
-        // 2. Fallback to classpath file (local dev)
+
         if (credentialsStream == null) {
             ClassPathResource resource = new ClassPathResource(SERVICE_ACCOUNT_PATH);
             if (resource.exists()) {
@@ -51,10 +51,10 @@ public class FirebaseConfig {
 
         GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream);
 
-        // storageBucket is needed for FirebaseStorageService (product image uploads)
+
         String bucket = System.getenv("FIREBASE_STORAGE_BUCKET");
         if (bucket == null || bucket.isBlank()) {
-            bucket = "jyoti-sales.firebasestorage.app"; // default
+            bucket = "jyoti-sales.firebasestorage.app";
         }
 
         FirebaseOptions options = FirebaseOptions.builder()

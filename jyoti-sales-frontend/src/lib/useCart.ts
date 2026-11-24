@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { useGuestCartStore } from '../store/cartStore'
 import { Cart, Product } from '../types'
 
-// Server-backed cart for logged-in users; guest cart (localStorage) otherwise, per spec section 3.4.
+// server cart when logged in, localStorage when guest
 export function useCart() {
   const { accessToken } = useAuthStore()
   const guest = useGuestCartStore()
@@ -87,7 +87,7 @@ export function useCart() {
     await qc.invalidateQueries({ queryKey: ['cart'] })
   }
 
-  /** Called after login: migrates localStorage guest cart items to the server cart. */
+
   async function syncGuestCartToServer() {
     const guestItems = useGuestCartStore.getState().items
     if (!guestItems?.length) return
@@ -98,7 +98,7 @@ export function useCart() {
           variantId: item.variantId ?? null,
           quantity: item.quantity,
         })
-      } catch (_) { /* ignore individual item failures */ }
+      } catch (_) { }
     }
     useGuestCartStore.getState().clear()
     await qc.invalidateQueries({ queryKey: ['cart'] })

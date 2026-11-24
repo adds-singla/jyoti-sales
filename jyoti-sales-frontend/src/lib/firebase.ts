@@ -3,8 +3,7 @@ import { getAuth, Auth } from 'firebase/auth'
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY
 
-// Only initialize Firebase when a real API key is configured.
-// Without it the app still works — Google/Phone login will be disabled.
+// firebase is optional — app works without it, just no Google/Phone sign-in
 let app: FirebaseApp | null = null
 let auth: Auth | null = null
 

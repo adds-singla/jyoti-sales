@@ -33,7 +33,7 @@ export default function AdminOrders() {
   const { data: pendingData } = useQuery({
     queryKey: ['admin-pending-count'],
     queryFn: async () => (await api.get('/admin/orders/pending-count')).data,
-    refetchInterval: 15000, // poll every 15s
+    refetchInterval: 15000,
   })
 
   async function updateStatus(id: number, status: string) {
@@ -106,17 +106,17 @@ export default function AdminOrders() {
                     isPending ? 'border-amber-400/30 shadow-[0_0_15px_rgba(251,191,36,0.05)]' : 'border-hairline/10'
                   }`}
                 >
-                  {/* Order header row */}
+
                   <div
                     className="flex items-center gap-4 p-4 cursor-pointer hover:bg-panel/30 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : o.id)}
                   >
-                    {/* Status indicator */}
+
                     <div className={`shrink-0 h-10 w-10 rounded-full flex items-center justify-center border ${config.bg}`}>
                       <StatusIcon className={`h-5 w-5 ${config.color}`} />
                     </div>
 
-                    {/* Order info */}
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-xs font-semibold">{o.orderNumber}</span>
@@ -139,12 +139,12 @@ export default function AdminOrders() {
                       </div>
                     </div>
 
-                    {/* Total */}
+
                     <div className="text-right shrink-0">
                       <span className="font-display font-bold">{formatINR(o.total)}</span>
                     </div>
 
-                    {/* Quick actions (visible without expanding) */}
+
                     <div className="hidden sm:flex items-center gap-2 shrink-0">
                       {isPending && (
                         <button
@@ -182,7 +182,7 @@ export default function AdminOrders() {
                           {isUpdating ? '...' : '✓ Delivered'}
                         </button>
                       )}
-                      {/* Cancel quick-action — show for any active order */}
+
                       {isActive && (
                         <button
                           onClick={(e) => {
@@ -197,13 +197,13 @@ export default function AdminOrders() {
                       )}
                     </div>
 
-                    {/* Expand toggle */}
+
                     <button className="shrink-0 text-ink/30">
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
                   </div>
 
-                  {/* Expanded detail */}
+
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
@@ -214,7 +214,7 @@ export default function AdminOrders() {
                         className="overflow-hidden"
                       >
                         <div className="border-t border-hairline/10 p-4 space-y-4">
-                          {/* Items list */}
+
                           <div>
                             <h4 className="text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">Order Items</h4>
                             <div className="space-y-2">
@@ -230,7 +230,7 @@ export default function AdminOrders() {
                             </div>
                           </div>
 
-                          {/* Price breakdown */}
+
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                             <div className="bg-panel/30 rounded-lg px-3 py-2">
                               <span className="text-ink/40">Subtotal</span>
@@ -252,7 +252,7 @@ export default function AdminOrders() {
                             </div>
                           </div>
 
-                          {/* Customer info */}
+
                           {o.customerName && (
                             <div className="text-xs text-ink/40">
                               <span className="font-semibold text-ink/60">Customer:</span> {o.customerName}
@@ -260,12 +260,12 @@ export default function AdminOrders() {
                             </div>
                           )}
 
-                          {/* Invoice download */}
+
                           <div className="pt-1 border-t border-hairline/10">
                             <InvoiceDownloadButton orderId={o.id} orderNumber={o.orderNumber} apiPath="/admin/orders" />
                           </div>
 
-                          {/* Status update */}
+
                           {isActive && (
                             <div className="flex items-center gap-3 pt-2 border-t border-hairline/10">
                               <span className="text-xs text-ink/40">Update status:</span>

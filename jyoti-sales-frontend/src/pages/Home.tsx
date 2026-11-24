@@ -29,7 +29,7 @@ export default function Home() {
 
   return (
     <div>
-      {/* Hero */}
+
       <section className="relative overflow-hidden bg-hero-gradient border-b border-hairline/10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 md:py-24">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
@@ -53,7 +53,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Banner carousel (simple stacked banners) */}
+
       {banners && banners.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-2 gap-6">
           {banners.map((b) => (
@@ -68,7 +68,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Trust strip */}
+
       <section className="border-y border-hairline/10 bg-surface2/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
@@ -85,7 +85,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Category grid */}
+
       {categories && categories.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
           <Reveal>
@@ -105,7 +105,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Featured deals */}
+
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <Reveal>
           <h2 className="font-display text-2xl font-bold mb-6">Featured Deals</h2>
@@ -117,7 +117,7 @@ export default function Home() {
         </Reveal>
       </section>
 
-      {/* Latest arrivals */}
+
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 pb-16">
         <Reveal>
           <h2 className="font-display text-2xl font-bold mb-6">New Arrivals</h2>

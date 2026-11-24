@@ -12,12 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Business-logic layer for payments. This is the ONLY class (besides controllers)
- * that touches payment concerns, and it depends purely on PaymentGatewayService —
- * never on DummyPaymentGatewayProvider or any other concrete provider directly.
- * Swapping providers never requires touching this class.
- */
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -53,7 +47,7 @@ public class PaymentService {
         }
         payment = paymentRepository.save(payment);
 
-        // For COD / dummy: mark immediately. For Razorpay INITIATED, we wait for verify().
+
         if (result.status() == PaymentGatewayService.GatewayStatus.SUCCESS) {
             orderService.markConfirmedAndDecrementStock(order.getId());
         } else if (result.status() == PaymentGatewayService.GatewayStatus.FAILED) {

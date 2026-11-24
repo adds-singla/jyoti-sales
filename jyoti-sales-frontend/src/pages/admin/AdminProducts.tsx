@@ -8,13 +8,13 @@ import {
   Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+
 
 interface UploadingFile {
   id: string
   name: string
   preview: string
-  progress: number          // 0-100
+  progress: number
   status: 'uploading' | 'done' | 'error'
   url?: string
   error?: string
@@ -29,7 +29,7 @@ const emptyForm = {
   specsText: '',
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+
 
 export default function AdminProducts() {
   const qc = useQueryClient()
@@ -71,7 +71,7 @@ export default function AdminProducts() {
     setShowForm(true)
   }
 
-  // ── Image ordering helpers ───────────────────────────────────────────────
+
 
   function addImageUrl() {
     const url = form.newImageUrl.trim()
@@ -90,7 +90,7 @@ export default function AdminProducts() {
     setForm((f) => ({ ...f, imageUrls: urls }))
   }
 
-  // ── File upload logic ────────────────────────────────────────────────────
+
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'))
@@ -112,7 +112,7 @@ export default function AdminProducts() {
       fd.append('file', file)
 
       try {
-        // Simulate progress while waiting
+
         const timer = setInterval(() => {
           setUploading((prev) =>
             prev.map((u) => u.id === entry.id && u.progress < 85
@@ -148,14 +148,14 @@ export default function AdminProducts() {
     }
   }, [])
 
-  // drag-and-drop
+
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
     uploadFiles(e.dataTransfer.files)
   }
 
-  // ── Product CRUD ─────────────────────────────────────────────────────────
+
 
   async function handleDelete(id: number) {
     if (!confirm('Delete this product?')) return
@@ -187,7 +187,7 @@ export default function AdminProducts() {
     }
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+
 
   return (
     <div>
@@ -221,7 +221,7 @@ export default function AdminProducts() {
             </div>
             <textarea placeholder="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="md:col-span-2 bg-panel border border-hairline/15 rounded-lg px-3 py-2 text-sm" rows={2} />
 
-            {/* ══ Image Manager ═══════════════════════════════════════════════ */}
+
             <div className="md:col-span-2 space-y-3">
               <div className="flex items-center gap-2">
                 <Images className="h-4 w-4 text-ink/40" />
@@ -229,7 +229,7 @@ export default function AdminProducts() {
                 <span className="text-xs text-ink/40">({form.imageUrls.length} added · first = main photo)</span>
               </div>
 
-              {/* ── Drag-and-drop upload zone ── */}
+
               <div
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
@@ -259,7 +259,7 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* ── Upload progress cards ── */}
+
               {uploading.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {uploading.map((u) => (
@@ -290,7 +290,7 @@ export default function AdminProducts() {
                 </div>
               )}
 
-              {/* ── Committed image tiles ── */}
+
               {form.imageUrls.length > 0 && (
                 <div className="flex flex-wrap gap-3">
                   {form.imageUrls.map((url, i) => (
@@ -308,7 +308,7 @@ export default function AdminProducts() {
                       <span className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 rounded">
                         {i === 0 ? 'Main' : `#${i + 1}`}
                       </span>
-                      {/* Hover controls */}
+
                       <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
                         <button type="button" onClick={() => removeImage(i)} title="Remove">
                           <X className="h-4 w-4 text-red-400 hover:text-red-300" />
@@ -331,7 +331,7 @@ export default function AdminProducts() {
                 </div>
               )}
 
-              {/* ── URL paste fallback ── */}
+
               <div className="flex gap-2">
                 <input
                   type="url"
@@ -352,7 +352,7 @@ export default function AdminProducts() {
               </div>
               <p className="text-xs text-ink/30">Hover image tiles to reorder (← →) or remove. First tile = main product photo.</p>
             </div>
-            {/* ════════════════════════════════════════════════════════════════ */}
+
 
             <textarea
               placeholder={'Specs (key: value, one per line)\ne.g. Screen Size: 55 inch'}
@@ -369,7 +369,7 @@ export default function AdminProducts() {
         </div>
       )}
 
-      {/* ── Products table ─────────────────────────────────────────────────── */}
+
       <div className="glass rounded-card border border-hairline/10 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-ink/40 border-b border-hairline/10">
@@ -387,7 +387,7 @@ export default function AdminProducts() {
             {data?.content?.map((p: Product) => (
               <tr key={p.id} className="border-b border-hairline/10 hover:bg-panel/40 transition-colors">
                 <td className="p-3 flex items-center gap-2">
-                  {/* Image stack preview */}
+
                   <div className="relative h-10 w-10 shrink-0">
                     {p.imageUrls[1] && (
                       <img src={p.imageUrls[1]} className="absolute top-0.5 left-0.5 h-9 w-9 rounded object-cover opacity-60" />

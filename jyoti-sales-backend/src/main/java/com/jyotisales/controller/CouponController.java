@@ -11,10 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * Public-facing coupon endpoints (authenticated users).
- * Returns only active, non-expired, non-exhausted coupons — safe for customer display.
- */
+
 @RestController
 @RequestMapping("/api/coupons")
 @RequiredArgsConstructor

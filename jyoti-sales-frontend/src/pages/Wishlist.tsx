@@ -61,7 +61,7 @@ export default function Wishlist() {
                   className="glass rounded-card border border-hairline/10 overflow-hidden hover:border-coral/20 transition-colors"
                 >
                   <div className="flex items-center gap-4 p-4">
-                    {/* Product image */}
+
                     <Link to={`/product/${p.slug}`} className="shrink-0">
                       <img
                         src={img}
@@ -70,7 +70,7 @@ export default function Wishlist() {
                       />
                     </Link>
 
-                    {/* Product info */}
+
                     <div className="flex-1 min-w-0">
                       <Link to={`/product/${p.slug}`}>
                         <p className="text-xs text-ink/40">{p.brand}</p>
@@ -96,7 +96,7 @@ export default function Wishlist() {
                       )}
                     </div>
 
-                    {/* Actions */}
+
                     <div className="flex flex-col sm:flex-row gap-2 shrink-0">
                       <button
                         onClick={() => handleMoveToCart(p)}

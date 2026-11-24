@@ -5,15 +5,9 @@ import { api } from '../lib/api'
 interface Props {
   orderId: number
   orderNumber: string
-  /** '/orders' for customer, '/admin/orders' for admin */
   apiPath: string
 }
 
-/**
- * Reusable download-invoice button.
- * Streams the PDF blob from the backend and triggers a browser download.
- * Works for both customer (/orders/{id}/invoice) and admin (/admin/orders/{id}/invoice).
- */
 export default function InvoiceDownloadButton({ orderId, orderNumber, apiPath }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

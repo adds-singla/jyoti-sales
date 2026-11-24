@@ -21,8 +21,7 @@ interface ThemeState {
   setTheme: (t: Theme) => void
 }
 
-// Light-premium is the default; dark is an explicit, remembered opt-in — matches
-// the design brief ("light-premium default, with a dark theme toggle").
+// light is default, dark is opt-in
 export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: readStoredTheme(),
   toggle: () => {

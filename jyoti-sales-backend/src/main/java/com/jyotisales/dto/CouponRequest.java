@@ -8,7 +8,7 @@ import java.time.Instant;
 
 public record CouponRequest(
         @NotBlank String code,
-        @NotNull String discountType, // FLAT | PERCENT
+        @NotNull String discountType,
         @NotNull BigDecimal discountValue,
         BigDecimal minOrderValue,
         Instant expiresAt,

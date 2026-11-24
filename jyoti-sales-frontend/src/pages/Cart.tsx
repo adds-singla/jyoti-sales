@@ -38,7 +38,6 @@ export default function Cart() {
               <div className="flex-1">
                 <p className="font-medium text-sm">{item.productName}</p>
                 {item.variantLabel && <p className="text-xs text-ink/40">{item.variantLabel}</p>}
-                {/* Price + MRP + discount % */}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <p className="text-sm text-coral font-semibold">{formatINR(item.unitPrice)}</p>
                   {item.mrp && item.mrp > item.unitPrice && (

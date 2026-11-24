@@ -17,7 +17,6 @@ export default function ProductCard({ product, onWishlist, wishlisted }: {
   const accessToken = useAuthStore((s) => s.accessToken)
   const navigate = useNavigate()
 
-  // Determine wishlist state: use external prop if provided, otherwise use hook
   const isInWishlist = wishlisted !== undefined ? wishlisted : isWishlisted(product.id)
 
   function handleWishlistClick(e: React.MouseEvent) {
@@ -34,7 +33,6 @@ export default function ProductCard({ product, onWishlist, wishlisted }: {
     }
   }
 
-  // Hover-tilt: subtle 3D perspective tilt that follows the cursor across the product photo.
   const tiltX = useMotionValue(0)
   const tiltY = useMotionValue(0)
   const springX = useSpring(tiltX, { stiffness: 300, damping: 25 })

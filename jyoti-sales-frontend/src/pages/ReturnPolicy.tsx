@@ -12,7 +12,7 @@ export default function ReturnPolicy() {
         <p className="text-sm text-ink/40">Last updated: {today}</p>
       </div>
 
-      {/* Quick summary cards */}
+
       <div className="grid sm:grid-cols-3 gap-4 mb-10">
         {[
           { icon: RefreshCcw, title: '7-Day Returns', desc: 'For eligible products in original condition', color: 'text-coral' },

@@ -16,7 +16,7 @@ const queryClient = new QueryClient({
   },
 })
 
-// Ping backend on load so Render free tier wakes up before user needs an API
+// wake up Render free-tier backend
 const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8080/api'
 fetch(`${BACKEND_BASE}/products?size=1`, { method: 'GET', cache: 'no-store' }).catch(() => {})
 

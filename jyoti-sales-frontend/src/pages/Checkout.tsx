@@ -14,7 +14,7 @@ import clsx from 'clsx'
 type Step = 'address' | 'payment' | 'processing' | 'result'
 type OnlineSubMethod = 'CARD' | 'UPI' | 'NET_BANKING'
 
-// Razorpay global type
+
 declare global {
   interface Window {
     Razorpay: new (options: RazorpayOptions) => RazorpayInstance
@@ -70,10 +70,10 @@ export default function Checkout() {
   const [couponError, setCouponError] = useState('')
   const [showCouponList, setShowCouponList] = useState(false)
 
-  // Snapshot of cart items before checkout — restored on payment failure
+  // snapshot for restore on payment failure
   const cartSnapshotRef = useRef<typeof cart | null>(null)
 
-  // Test-mode (dummy provider) payment form state
+
   const [cardNumber, setCardNumber] = useState('')
   const [cardExpiry, setCardExpiry] = useState('')
   const [cardCvv, setCardCvv] = useState('')
@@ -183,7 +183,7 @@ export default function Checkout() {
     setError('')
     if (!selectedAddress) { setError('Please select or add a delivery address.'); return }
     try {
-      // Snapshot cart before backend clears it on checkout
+
       cartSnapshotRef.current = cart ? { ...cart, items: [...(cart.items || [])] } : null
       const res = await api.post('/orders/checkout', { addressId: selectedAddress, couponCode: appliedCoupon?.code || null })
       setOrderId(res.data.id)
@@ -194,17 +194,12 @@ export default function Checkout() {
     }
   }
 
-  // ── Cancel pending order (on payment failure / dismiss) ─────────────────
-  // Backend will restore cart items automatically; we then FORCE-refetch so the
-  // cart data is fresh before we show the address step again.
+
   async function cancelPendingOrder(id: number) {
-    // Cancel the order if it's still PENDING (backend may have already cancelled it via markFailed)
-    try { await api.patch(`/orders/${id}/cancel`) } catch (_) { /* order may already be cancelled */ }
-    // Force an immediate refetch (not just invalidate) so cart data is guaranteed fresh
+    try { await api.patch(`/orders/${id}/cancel`) } catch (_) { }
     await qc.refetchQueries({ queryKey: ['cart'] })
   }
 
-  // ── COD placement ────────────────────────────────────────────────────────
   async function handleCOD() {
     if (!orderId) return
     setError('')
@@ -214,18 +209,16 @@ export default function Checkout() {
       await qc.refetchQueries({ queryKey: ['cart'] })
       setResult({ success: true, message: 'Order placed! Pay cash on delivery.' })
     } catch (e) {
-      // COD initiation failed — cancel the pending order so stock is restored
+
       await cancelPendingOrder(orderId)
       setResult({ success: false, message: apiErrorMessage(e) })
     }
     setStep('result')
   }
 
-  // ── Online payment ───────────────────────────────────────────────────────
   async function handleOnlinePayment() {
     if (!orderId) return
 
-    // ── Validate payment details before proceeding ──
     setPaymentError('')
     setError('')
     if (onlineSubMethod === 'CARD') {
@@ -244,8 +237,7 @@ export default function Checkout() {
     setStep('processing')
 
     try {
-      // Step 1: Create payment order on backend
-      // Send sub-method details so dummy provider can resolve outcome
+
       const payload: Record<string, any> = { orderId, method: onlineSubMethod }
       if (onlineSubMethod === 'CARD') {
         payload.cardNumber = cardNumber.replace(/\s/g, '')
@@ -259,9 +251,8 @@ export default function Checkout() {
 
       const { data } = await api.post('/payments/initiate', payload)
 
-      // ── Test / Dummy mode: backend returns testMode=true, no Razorpay IDs ──
+
       if (data.testMode || !data.razorpayOrderId || !data.razorpayKeyId) {
-        // Dummy provider resolves immediately — check status from response
         if (data.status === 'SUCCESS') {
           await qc.refetchQueries({ queryKey: ['cart'] })
           setResult({ success: true, message: '✅ [Test Mode] Payment approved! Your order is confirmed.' })
@@ -269,7 +260,6 @@ export default function Checkout() {
           await cancelPendingOrder(orderId)
           setResult({ success: false, message: data.failureReason || '[Test Mode] Payment declined by test gateway.' })
         } else {
-          // INITIATED / PENDING (shouldn't happen for non-COD dummy, but handle gracefully)
           setResult({ success: false, message: 'Payment could not be completed. Please try again.' })
           await cancelPendingOrder(orderId)
         }
@@ -277,7 +267,7 @@ export default function Checkout() {
         return
       }
 
-      // ── Real Razorpay mode: open the modal ──────────────────────────────
+
       const loaded = await loadRazorpayScript()
       if (!loaded || !window.Razorpay) {
         await cancelPendingOrder(orderId)
@@ -286,10 +276,10 @@ export default function Checkout() {
         return
       }
 
-      setStep('processing') // keep spinner visible behind the modal
+      setStep('processing')
       const rzp = new window.Razorpay({
         key: data.razorpayKeyId,
-        amount: Math.round(orderTotal * 100), // paise
+        amount: Math.round(orderTotal * 100),
         currency: 'INR',
         name: 'Jyoti Sales',
         description: `Order #${orderId}`,
@@ -301,7 +291,6 @@ export default function Checkout() {
         },
         theme: { color: '#F2A65A' },
         handler: async (response: RazorpayResponse) => {
-          // Step 2: Verify HMAC signature on backend
           try {
             await api.post('/payments/razorpay/verify', {
               paymentId: data.paymentId,
@@ -312,7 +301,6 @@ export default function Checkout() {
             qc.refetchQueries({ queryKey: ['cart'] })
             setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
           } catch (e) {
-            // Signature invalid — treat as failed & cancel order
             await cancelPendingOrder(orderId!)
             setResult({ success: false, message: 'Payment verification failed. Please contact support if money was deducted.' })
           }
@@ -320,7 +308,6 @@ export default function Checkout() {
         },
         modal: {
           ondismiss: async () => {
-            // User closed the modal without completing payment — cancel the order
             await cancelPendingOrder(orderId!)
             setResult({ success: false, message: 'Payment cancelled. Your order has been cancelled and no money was charged.' })
             setStep('result')
@@ -330,15 +317,13 @@ export default function Checkout() {
 
       rzp.open()
     } catch (e) {
-      // initiate() itself failed — cancel pending order
       await cancelPendingOrder(orderId)
       setResult({ success: false, message: apiErrorMessage(e) })
       setStep('result')
     }
   }
 
-  // While cart is loading or refetching, show a spinner to avoid the "empty cart"
-  // flash. cartRestoring covers the Try Again path where we explicitly wait for fresh data.
+
   if (step === 'address' && (cartLoading || cartFetching || cartRestoring)) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">
@@ -366,7 +351,7 @@ export default function Checkout() {
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
       <h1 className="font-display text-2xl font-bold mb-2">Checkout</h1>
 
-      {/* Step indicator */}
+
       <div className="flex gap-2 text-xs text-ink/40 mb-8">
         {(['address', 'payment', 'result'] as const).map((s, i) => (
           <span key={s} className="flex items-center gap-1">
@@ -380,7 +365,7 @@ export default function Checkout() {
 
       {step === 'address' && error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
-      {/* ── Step 1: Address ── */}
+
       {step === 'address' && (
         <div className="space-y-4">
           <h2 className="font-semibold text-sm flex items-center gap-2 text-ink/60">
@@ -494,7 +479,7 @@ export default function Checkout() {
             </motion.div>
           )}
 
-          {/* ── Coupon Section ── */}
+
           <div className="glass rounded-card border border-hairline/10 p-4 space-y-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Tag className="h-4 w-4 text-coral" /> Apply Coupon
@@ -512,7 +497,7 @@ export default function Checkout() {
               </div>
             ) : (
               <div className="space-y-2">
-                {/* Manual entry + dropdown toggle */}
+
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input
@@ -541,7 +526,7 @@ export default function Checkout() {
 
                 {couponError && <p className="text-red-400 text-xs">{couponError}</p>}
 
-                {/* Dropdown list */}
+
                 {showCouponList && (
                   <div className="border border-hairline/15 rounded-xl overflow-hidden bg-panel shadow-xl">
                     {!activeCoupons?.length ? (
@@ -586,7 +571,7 @@ export default function Checkout() {
             )}
           </div>
 
-          {/* Order total preview */}
+
           {appliedCoupon && (
             <div className="glass rounded-xl border border-hairline/10 px-4 py-3 text-sm space-y-1.5">
               <div className="flex justify-between text-ink/60">
@@ -608,18 +593,18 @@ export default function Checkout() {
         </div>
       )}
 
-      {/* ── Step 2: Payment method ── */}
+
       {step === 'payment' && (
         <AnimatePresence>
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
 
-            {/* Order summary strip */}
+
             <div className="glass rounded-card p-4 border border-hairline/10 flex justify-between items-center">
               <span className="text-sm text-ink/60">Order Total</span>
               <span className="font-bold text-lg text-coral">{formatINR(orderTotal)}</span>
             </div>
 
-            {/* Method cards */}
+
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setMethod('ONLINE')}
@@ -654,11 +639,11 @@ export default function Checkout() {
               </button>
             </div>
 
-            {/* Online payment sub-method selector + form */}
+
             {method === 'ONLINE' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
 
-                {/* Sub-method tabs */}
+
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { key: 'CARD' as const,        label: 'Card',        sub: 'Credit / Debit'  },
@@ -678,7 +663,7 @@ export default function Checkout() {
                   ))}
                 </div>
 
-                {/* CARD fields */}
+
                 {onlineSubMethod === 'CARD' && (
                   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
@@ -703,7 +688,7 @@ export default function Checkout() {
                   </motion.div>
                 )}
 
-                {/* UPI field */}
+
                 {onlineSubMethod === 'UPI' && (
                   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
@@ -717,7 +702,7 @@ export default function Checkout() {
                   </motion.div>
                 )}
 
-                {/* Net Banking */}
+
                 {onlineSubMethod === 'NET_BANKING' && (
                   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-xl border border-hairline/15 p-4 space-y-3">
@@ -751,7 +736,7 @@ export default function Checkout() {
               </motion.div>
             )}
 
-            {/* CTA */}
+
             {paymentError && method === 'ONLINE' && (
               <p className="text-sm text-red-400 text-center -mb-1">{paymentError}</p>
             )}
@@ -769,7 +754,7 @@ export default function Checkout() {
         </AnimatePresence>
       )}
 
-      {/* ── Processing spinner ── */}
+
       {step === 'processing' && (
         <div className="text-center py-24">
           <motion.div
@@ -781,7 +766,7 @@ export default function Checkout() {
         </div>
       )}
 
-      {/* ── Result ── */}
+
       {step === 'result' && result && (
         <div className="relative text-center py-16">
           {result.success && <Confetti />}
@@ -805,8 +790,6 @@ export default function Checkout() {
                 <button
                   disabled={cartRestoring}
                   onClick={async () => {
-                    // Force a fresh cart fetch before returning to address step so
-                    // the restored items are guaranteed to be in the cache.
                     setCartRestoring(true)
                     await qc.refetchQueries({ queryKey: ['cart'] })
                     setCartRestoring(false)

@@ -40,22 +40,17 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getMyOrder(CurrentUser.id(), id));
     }
 
-    /**
-     * Cancel an order — customer can cancel PENDING or CONFIRMED orders only.
-     */
+
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<OrderResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.cancelMyOrder(CurrentUser.id(), id));
     }
 
-    /**
-     * Download PDF invoice for an order.
-     * Only the order owner can download their own invoice.
-     */
+
     @GetMapping("/{id}/invoice")
     public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id) {
         Order order = orderService.getEntity(id);
-        // Security: ensure the order belongs to the requesting user
+
         if (!order.getUser().getId().equals(CurrentUser.id())) {
             return ResponseEntity.status(403).build();
         }

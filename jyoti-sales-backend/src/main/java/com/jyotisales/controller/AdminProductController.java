@@ -39,12 +39,7 @@ public class AdminProductController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Upload a product image file → Firebase Storage → returns { url: "..." }
-     * POST /api/admin/products/upload-image
-     * Content-Type: multipart/form-data
-     * Field name: file
-     */
+
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, String>> uploadImage(
             @RequestParam("file") MultipartFile file) {

@@ -55,7 +55,7 @@ public class FirebaseAuthService {
                 ? (String) decoded.getClaims().get("phone_number") : null;
         String name  = decoded.getName() != null ? decoded.getName() : "Customer";
 
-        // Find or create user
+
         Optional<User> existing = Optional.empty();
         if (email != null) {
             existing = userRepository.findByEmail(email);
@@ -69,19 +69,19 @@ public class FirebaseAuthService {
             u.setFullName(name);
             u.setEmail(email);
             u.setPhone(phone);
-            // Social-login users have no password — set a random unguessable hash
+            // social-login users need a placeholder password hash
             u.setPasswordHash(UUID.randomUUID().toString());
             u.setRole(Role.ROLE_CUSTOMER);
             u = userRepository.save(u);
 
-            // Create a cart for new users
+
             Cart cart = new Cart();
             cart.setUser(u);
             cartRepository.save(cart);
             return u;
         });
 
-        // Update name if changed (e.g. Google profile update)
+
         if (!name.equals(user.getFullName())) {
             user.setFullName(name);
         }

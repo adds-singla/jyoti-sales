@@ -15,11 +15,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Page<Order> findByStatus(Order.Status status, Pageable pageable);
     long countByStatus(Order.Status status);
 
-    /**
-     * Loads all orders in range with items, product snapshots, and user
-     * in a single JOIN FETCH query — avoids LazyInitializationException
-     * and N+1 queries when the service iterates items and user fields.
-     */
+    // JOIN FETCH to avoid N+1 in dashboard
     @Query("""
         SELECT DISTINCT o FROM Order o
         LEFT JOIN FETCH o.items i

@@ -12,19 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
-/**
- * Real Razorpay payment gateway provider.
- *
- * Flow:
- *  1. Frontend calls POST /payments/initiate → this creates a Razorpay order
- *     and returns { razorpayOrderId, razorpayKeyId, paymentId, status: INITIATED }.
- *  2. Frontend opens Razorpay checkout.js modal with those values.
- *  3. On success, Razorpay returns { razorpayPaymentId, razorpayOrderId, razorpaySignature }.
- *  4. Frontend calls POST /payments/razorpay/verify with those values + our paymentId.
- *  5. This provider verifies the HMAC-SHA256 signature. If valid → order confirmed.
- *
- * Activated by setting: PAYMENT_PROVIDER=razorpay
- */
 @Component
 @ConditionalOnProperty(name = "app.payment.provider", havingValue = "razorpay")
 public class RazorpayGatewayProvider implements PaymentGatewayService {
@@ -54,7 +41,7 @@ public class RazorpayGatewayProvider implements PaymentGatewayService {
         }
 
         try {
-            // Amount in paise (Razorpay requires integer paise, not rupees)
+
             long amountInPaise = command.amount()
                     .multiply(BigDecimal.valueOf(100))
                     .longValue();
@@ -63,18 +50,18 @@ public class RazorpayGatewayProvider implements PaymentGatewayService {
             orderRequest.put("amount", amountInPaise);
             orderRequest.put("currency", "INR");
             orderRequest.put("receipt", "order_" + command.orderId());
-            orderRequest.put("payment_capture", 1); // auto-capture
+            orderRequest.put("payment_capture", 1);
 
             Order razorpayOrder = client.orders.create(orderRequest);
             String rzpOrderId = razorpayOrder.get("id");
 
             return new GatewayInitiateResult(
-                    rzpOrderId,                  // stored as providerReference
+                    rzpOrderId,
                     GatewayStatus.INITIATED,
                     "Razorpay order created. Complete payment in the popup.",
                     false,
-                    rzpOrderId,                  // razorpayOrderId for the modal
-                    keyId                        // razorpayKeyId for the modal
+                    rzpOrderId,
+                    keyId
             );
         } catch (RazorpayException e) {
             return new GatewayInitiateResult(
@@ -85,10 +72,6 @@ public class RazorpayGatewayProvider implements PaymentGatewayService {
         }
     }
 
-    /**
-     * Verifies the Razorpay signature after the checkout.js modal completes.
-     * providerReference format expected: "razorpayOrderId|razorpayPaymentId|razorpaySignature"
-     */
     @Override
     public GatewayVerifyResult verify(String providerReference) {
         String[] parts = providerReference.split("\\|", 3);
@@ -107,7 +90,7 @@ public class RazorpayGatewayProvider implements PaymentGatewayService {
             attributes.put("razorpay_signature",  signature);
 
             Utils.verifyPaymentSignature(attributes, keySecret);
-            // If above doesn't throw → signature is valid
+
             return new GatewayVerifyResult(rzpPaymentId, GatewayStatus.SUCCESS,
                     "Payment verified successfully");
         } catch (RazorpayException e) {

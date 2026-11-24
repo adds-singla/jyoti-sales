@@ -20,7 +20,7 @@ public class CouponService {
         return couponRepository.findAll();
     }
 
-    /** Returns coupons that are active, not expired, and not exhausted — safe for public display. */
+
     public List<Coupon> listActive() {
         java.time.Instant now = java.time.Instant.now();
         return couponRepository.findAll().stream()

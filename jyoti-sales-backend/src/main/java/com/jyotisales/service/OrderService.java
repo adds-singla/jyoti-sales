@@ -29,10 +29,6 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final EmailService emailService;
 
-    /**
-     * Creates an order from the user's current cart in PENDING status and immediately
-     * decrements stock so that inventory is reserved at checkout time.
-     */
     @Transactional
     public OrderResponse checkout(Long userId, CheckoutRequest req) {
         Cart cart = cartRepository.findByUserId(userId)
@@ -86,7 +82,7 @@ public class OrderService {
 
             subtotal = subtotal.add(unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity())));
 
-            // Decrement stock immediately at checkout
+
             if (ci.getVariant() != null) {
                 ProductVariant v = ci.getVariant();
                 v.setStock(Math.max(0, v.getStock() - ci.getQuantity()));
@@ -125,7 +121,7 @@ public class OrderService {
 
         order = orderRepository.save(order);
 
-        // clear cart after order is created
+
         cart.getItems().clear();
         cart.setAppliedCouponCode(null);
         cartRepository.save(cart);
@@ -137,9 +133,9 @@ public class OrderService {
     public void markConfirmedAndDecrementStock(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Order not found"));
-        if (order.getStatus() != Order.Status.PENDING) return; // idempotent
+        if (order.getStatus() != Order.Status.PENDING) return;
 
-        // Stock is already decremented at checkout time, so just update status
+
         order.setStatus(Order.Status.CONFIRMED);
         orderRepository.save(order);
         emailService.sendOrderConfirmation(order);
@@ -150,7 +146,7 @@ public class OrderService {
     public void markFailed(Long orderId) {
         orderRepository.findById(orderId).ifPresent(order -> {
             if (order.getStatus() == Order.Status.PENDING) {
-                // Restore stock since the order failed
+
                 for (OrderItem oi : order.getItems()) {
                     if (oi.getVariant() != null) {
                         ProductVariant v = oi.getVariant();
@@ -163,7 +159,7 @@ public class OrderService {
                 }
                 order.setStatus(Order.Status.CANCELLED);
                 orderRepository.save(order);
-                // Re-add items to the user's cart so they don't lose their basket
+
                 restoreCartFromOrder(order);
             }
         });
@@ -192,7 +188,7 @@ public class OrderService {
             throw ApiException.badRequest("Order cannot be cancelled once it is " + current.name().toLowerCase() + ". Please contact support.");
         }
 
-        // Restore stock
+
         for (OrderItem oi : order.getItems()) {
             if (oi.getVariant() != null) {
                 ProductVariant v = oi.getVariant();
@@ -207,12 +203,12 @@ public class OrderService {
         order.setStatus(Order.Status.CANCELLED);
         Order saved = orderRepository.save(order);
         emailService.sendStatusUpdate(saved);
-        // Re-add items to the user's cart so they don't lose their basket
+
         restoreCartFromOrder(order);
         return toResponse(saved);
     }
 
-    // ---- admin ----
+    // admin
 
     @Transactional(readOnly = true)
     public Page<OrderResponse> adminList(Order.Status status, Pageable pageable) {
@@ -225,7 +221,7 @@ public class OrderService {
         Order order = orderRepository.findById(orderId).orElseThrow(() -> ApiException.notFound("Order not found"));
         Order.Status oldStatus = order.getStatus();
 
-        // If cancelling a non-cancelled order, restore stock
+
         if (newStatus == Order.Status.CANCELLED && oldStatus != Order.Status.CANCELLED) {
             for (OrderItem oi : order.getItems()) {
                 if (oi.getVariant() != null) {
@@ -253,12 +249,6 @@ public class OrderService {
         return orderRepository.findById(orderId).orElseThrow(() -> ApiException.notFound("Order not found"));
     }
 
-    /**
-     * Re-populates the user's cart with the items from a cancelled/failed order,
-     * so they don't lose their basket if payment fails or they cancel at checkout.
-     * Items that are already in the cart have their quantities merged (summed).
-     * Best-effort: any individual item failure is logged and skipped.
-     */
     private void restoreCartFromOrder(Order order) {
         try {
             Long userId = order.getUser().getId();
@@ -272,7 +262,7 @@ public class OrderService {
 
             for (OrderItem oi : order.getItems()) {
                 try {
-                    // Find existing cart item for the same product+variant
+
                     CartItem existing = cart.getItems().stream()
                             .filter(ci -> ci.getProduct().getId().equals(oi.getProduct().getId())
                                     && java.util.Objects.equals(
@@ -282,7 +272,7 @@ public class OrderService {
                             .orElse(null);
 
                     if (existing != null) {
-                        // Merge quantities
+
                         existing.setQuantity(existing.getQuantity() + oi.getQuantity());
                     } else {
                         CartItem ci = new CartItem();
@@ -302,7 +292,7 @@ public class OrderService {
             log.info("[CART RESTORE] Restored {} item(s) to cart for user {} from cancelled order {}",
                     order.getItems().size(), userId, order.getId());
         } catch (Exception ex) {
-            // Never let cart restoration fail the cancellation itself
+            // best-effort — never block cancellation
             log.error("[CART RESTORE] Failed to restore cart for order {}: {}", order.getId(), ex.getMessage());
         }
     }
@@ -320,7 +310,7 @@ public class OrderService {
                 customerEmail = user.getEmail();
             }
         } catch (Exception ignored) {
-            // lazy loading may fail for detached entities
+
         }
         return new OrderResponse(o.getId(), o.getOrderNumber(), o.getStatus().name(), items,
                 o.getSubtotal(), o.getDiscount(), o.getShippingFee(), o.getTotal(), o.getCouponCode(),

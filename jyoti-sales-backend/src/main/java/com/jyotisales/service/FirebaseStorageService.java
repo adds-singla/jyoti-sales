@@ -29,17 +29,13 @@ public class FirebaseStorageService {
     @Value("${firebase.storage.bucket:jyoti-sales.firebasestorage.app}")
     private String bucketName;
 
-    private static final long MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    private static final long MAX_SIZE = 5 * 1024 * 1024;
     private static final java.util.Set<String> ALLOWED_TYPES = java.util.Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif"
     );
 
-    /**
-     * Uploads a product image to Firebase Storage and returns its public download URL.
-     * Files are stored under products/{uuid}.{ext}
-     */
     public String uploadProductImage(MultipartFile file) {
-        // ── Validation ───────────────────────────────────────────────────────
+
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("Image file is required");
         }
@@ -51,7 +47,7 @@ public class FirebaseStorageService {
             throw ApiException.badRequest("Only JPEG, PNG, WebP and GIF images are allowed");
         }
 
-        // ── Build storage path ───────────────────────────────────────────────
+
         String ext = switch (contentType) {
             case "image/jpeg" -> "jpg";
             case "image/png"  -> "png";
@@ -61,17 +57,17 @@ public class FirebaseStorageService {
         };
         String objectName = "products/" + UUID.randomUUID() + "." + ext;
 
-        // ── Upload via Firebase Admin SDK ────────────────────────────────────
+
         try {
             var bucket = StorageClient.getInstance(firebaseApp).bucket(bucketName);
             var blob = bucket.create(objectName, file.getInputStream(), contentType);
 
-            // Make it publicly readable
+
             blob.createAcl(com.google.cloud.storage.Acl.of(
                     com.google.cloud.storage.Acl.User.ofAllUsers(),
                     com.google.cloud.storage.Acl.Role.READER));
 
-            // Build public URL
+
             String encodedPath = URLEncoder.encode(objectName, StandardCharsets.UTF_8);
             String url = String.format(
                     "https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media",

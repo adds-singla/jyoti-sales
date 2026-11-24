@@ -1,5 +1,3 @@
-// Jyoti Sales business details — pulled into footer, About, and invoice-style order confirmations.
-// Fill in the placeholders below with real details before going live.
 export const BUSINESS = {
   name: 'Jyoti Sales',
   altName: 'Jyoti Television Center',

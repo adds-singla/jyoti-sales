@@ -42,7 +42,7 @@ public class AdminOrderController {
         return ResponseEntity.ok(Map.of("count", orderService.countPending()));
     }
 
-    /** Download PDF invoice for any order (admin only). */
+
     @GetMapping("/{id}/invoice")
     public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id) {
         Order order = orderService.getEntity(id);
